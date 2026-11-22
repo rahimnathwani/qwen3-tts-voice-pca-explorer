@@ -336,13 +336,98 @@
     /* Base Voice Section */
     .voice-source-grid {
       display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 10px;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 8px;
       align-items: end;
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 720px) {
       .voice-source-grid { grid-template-columns: 1fr; }
+    }
+
+    .voice-filter-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .voice-filter-row input[type="text"] {
+      padding: 6px 10px;
+      font-size: 12.5px;
+    }
+
+    /* Interactive 2D PCA Scatter Map */
+    .pca-map-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .pca-map-toolbar select {
+      width: auto;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .pca-canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: 250px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    #pcaCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+
+    .pca-tooltip {
+      position: absolute;
+      pointer-events: none;
+      display: none;
+      padding: 4px 8px;
+      border-radius: 5px;
+      background: rgba(18, 23, 34, 0.94);
+      border: 1px solid var(--border-hover);
+      color: var(--text);
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      z-index: 5;
+    }
+
+    .pca-map-legend {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .legend-items {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .legend-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
     }
 
     .voice-meta-strip {
@@ -782,9 +867,13 @@
           <span class="tick-legend"><span class="tick-swatch"></span> Amber tick = base voice projection</span>
         </div>
 
+        <div class="voice-filter-row">
+          <input type="text" id="voiceFilterInput" placeholder="Filter voices by ID, gender, accent (e.g. Scottish, Female, Ryan)…" />
+        </div>
+
         <div class="voice-source-grid">
           <div>
-            <label class="field-label" for="voiceSelect">Select Preset or Uploaded Voice</label>
+            <label class="field-label" for="voiceSelect">Select Preset, Built-in, or Uploaded Voice</label>
             <select id="voiceSelect"></select>
           </div>
           <div>
@@ -793,6 +882,10 @@
           </div>
           <div>
             <button class="btn" id="recordBtn" type="button">Record Mic</button>
+          </div>
+          <div>
+            <input type="file" id="safetensorsUpload" accept=".safetensors" hidden />
+            <button class="btn" id="importSafetensorsBtn" type="button" title="Import a previously exported .safetensors speaker embedding">Load .safetensors</button>
           </div>
         </div>
 
@@ -856,8 +949,41 @@
       </section>
     </div>
 
-    <!-- Right Column: Synthesis + Comparison History -->
+    <!-- Right Column: 2D Voice Map + Synthesis + Comparison History -->
     <div class="column">
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">2D Voice Space Map</h2>
+          <span style="font-size: 11.5px; color: var(--text-muted);">Click or drag to steer live</span>
+        </div>
+        <div class="pca-map-toolbar">
+          <div class="btn-row">
+            <span style="font-size:12px; color:var(--text-muted);">X:</span>
+            <select id="mapAxisX"></select>
+            <span style="font-size:12px; color:var(--text-muted);">Y:</span>
+            <select id="mapAxisY"></select>
+          </div>
+          <div class="btn-row">
+            <span style="font-size:12px; color:var(--text-muted);">Color:</span>
+            <select id="mapColorBy">
+              <option value="gender" selected>Gender</option>
+              <option value="accent">Accent</option>
+            </select>
+          </div>
+        </div>
+        <div class="pca-canvas-wrap">
+          <canvas id="pcaCanvas"></canvas>
+          <div class="pca-tooltip" id="pcaTooltip"></div>
+        </div>
+        <div class="pca-map-legend">
+          <div class="legend-items" id="pcaLegendItems"></div>
+          <div class="legend-items">
+            <span><span class="legend-dot" style="background:var(--amber);"></span>Base</span>
+            <span><span class="legend-dot" style="background:var(--teal);"></span>Steered</span>
+          </div>
+        </div>
+      </section>
+
       <section class="panel">
         <div class="panel-header">
           <h2 class="panel-title">3. Synthesize Speech</h2>
@@ -961,6 +1087,11 @@
       pendingAudioUrl: null,
       pendingDuration: 0,
       previewStopTimer: null,
+      voiceOrder: [],      // ordered voice IDs for grouped dropdown
+      mapAxisX: 0,
+      mapAxisY: 1,
+      mapColorBy: "gender",
+      mapDragging: false,
     };
 
     const $ = (id) => document.getElementById(id);
@@ -1044,31 +1175,89 @@
       }
     }
 
+    function renderVoiceDropdown(filterText = "") {
+      const q = filterText.trim().toLowerCase();
+      const voiceSelect = $("voiceSelect");
+      const current = state.currentVoiceId;
+      voiceSelect.innerHTML = "";
+
+      const groups = [
+        { label: "Centroid", items: [] },
+        { label: "CustomVoice Built-ins", items: [] },
+        { label: "Uploaded / Imported", items: [] },
+        { label: "VCTK Featured", items: [] },
+        { label: "VCTK All Speakers", items: [] },
+      ];
+
+      let vctkCount = 0;
+      for (const id of state.voiceOrder) {
+        const v = state.voices[id];
+        if (!v) continue;
+        const searchable = `${v.label} ${v.id} ${v.metadata?.accent || ""} ${v.metadata?.gender || ""}`.toLowerCase();
+        if (q && !searchable.includes(q)) continue;
+
+        if (id === "pca_mean") {
+          groups[0].items.push(v);
+        } else if (id.startsWith("builtin_")) {
+          groups[1].items.push(v);
+        } else if (id.startsWith("custom_")) {
+          groups[2].items.push(v);
+        } else if (id.startsWith("vctk_")) {
+          if (vctkCount < 6 && !q) {
+            groups[3].items.push(v);
+          } else {
+            groups[4].items.push(v);
+          }
+          vctkCount++;
+        } else {
+          groups[4].items.push(v);
+        }
+      }
+
+      let hasCurrent = false;
+      for (const g of groups) {
+        if (g.items.length === 0) continue;
+        const og = document.createElement("optgroup");
+        og.label = `${g.label} (${g.items.length})`;
+        for (const v of g.items) {
+          const opt = document.createElement("option");
+          opt.value = v.id;
+          opt.textContent = v.label;
+          if (v.id === current) hasCurrent = true;
+          og.appendChild(opt);
+        }
+        voiceSelect.appendChild(og);
+      }
+
+      if (hasCurrent) {
+        voiceSelect.value = current;
+      } else if (voiceSelect.options.length > 0) {
+        voiceSelect.selectedIndex = 0;
+      }
+    }
+
     function refreshVoiceDropdown(data, preserveCustom = false) {
       const prevVoiceId = state.currentVoiceId;
       const customVoices = preserveCustom
-        ? Object.values(state.voices).filter((v) => v.id.startsWith("custom_"))
+        ? state.voiceOrder
+            .filter((id) => id.startsWith("custom_") && state.voices[id])
+            .map((id) => state.voices[id])
         : [];
 
       state.voices = {};
-      const voiceSelect = $("voiceSelect");
-      voiceSelect.innerHTML = "";
+      state.voiceOrder = [];
 
       for (const preset of data.presets) {
         state.voices[preset.id] = preset;
-        const opt = document.createElement("option");
-        opt.value = preset.id;
-        opt.textContent = preset.label;
-        voiceSelect.appendChild(opt);
+        state.voiceOrder.push(preset.id);
       }
 
       for (const cv of customVoices) {
         state.voices[cv.id] = cv;
-        const opt = document.createElement("option");
-        opt.value = cv.id;
-        opt.textContent = cv.label;
-        voiceSelect.appendChild(opt);
+        state.voiceOrder.push(cv.id);
       }
+
+      renderVoiceDropdown($("voiceFilterInput").value);
 
       if (prevVoiceId && state.voices[prevVoiceId]) {
         selectVoice(prevVoiceId);
@@ -1076,6 +1265,10 @@
         selectVoice(data.presets[0].id);
       }
     }
+
+    $("voiceFilterInput").addEventListener("input", (e) => {
+      renderVoiceDropdown(e.target.value);
+    });
 
     async function init() {
       try {
@@ -1112,8 +1305,10 @@
         }
 
         renderSliders();
+        initPcaMap(data);
         applyModelCapabilities(data);
         refreshVoiceDropdown(data, false);
+        drawPcaMap();
       } catch (err) {
         $("statusText").textContent = "Server error";
         showError(err.message);
@@ -1202,6 +1397,7 @@
         slider.addEventListener("input", () => {
           state.targets[i] = parseFloat(slider.value);
           updateSliderDisplay(i);
+          drawPcaMap();
         });
       });
     }
@@ -1265,6 +1461,7 @@
       } else if (!supportsIcl) {
         $("useIclToggle").checked = false;
       }
+      drawPcaMap();
     }
 
     // Upload audio file -> open chunk/trim selector
@@ -1365,11 +1562,8 @@
           metadata: { source: `${filename} (${data.clip_start_sec.toFixed(1)}s–${data.clip_end_sec.toFixed(1)}s, ${data.duration_sec.toFixed(1)}s${data.has_icl ? ", ICL enabled" : ""})` },
         };
         state.voices[voiceObj.id] = voiceObj;
-
-        const opt = document.createElement("option");
-        opt.value = voiceObj.id;
-        opt.textContent = voiceObj.label;
-        $("voiceSelect").appendChild(opt);
+        state.voiceOrder.push(voiceObj.id);
+        renderVoiceDropdown($("voiceFilterInput").value);
         selectVoice(voiceObj.id);
         $("encodeStatus").textContent = `Encoded ${data.duration_sec.toFixed(1)}s${data.has_icl ? " (ICL + x-vec)" : " (x-vec)"}`;
       } catch (err) {
@@ -1464,6 +1658,270 @@
       }
     });
 
+    // Import .safetensors speaker embedding
+    $("importSafetensorsBtn").addEventListener("click", () => $("safetensorsUpload").click());
+    $("safetensorsUpload").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      showError(null);
+      $("encodeStatus").textContent = "Importing .safetensors…";
+      try {
+        const fd = new FormData();
+        fd.append("file", file, file.name);
+        const res = await fetch("/api/import-embedding", { method: "POST", body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || "Failed to import .safetensors");
+        }
+        const data = await res.json();
+        const voiceObj = {
+          id: data.embedding_id,
+          label: data.label,
+          projections: data.projections,
+          has_icl: false,
+          metadata: { source: `${file.name} (norm=${data.norm.toFixed(2)})` },
+        };
+        state.voices[voiceObj.id] = voiceObj;
+        state.voiceOrder.push(voiceObj.id);
+        renderVoiceDropdown($("voiceFilterInput").value);
+        selectVoice(voiceObj.id);
+        $("encodeStatus").textContent = `Imported ${file.name}`;
+      } catch (err) {
+        $("encodeStatus").textContent = "";
+        showError(err.message);
+      } finally {
+        e.target.value = "";
+      }
+    });
+
+    // Interactive 2D PCA Voice Space Map
+    const ACCENT_COLORS = {
+      English: "#6366f1",
+      Scottish: "#2dd4bf",
+      American: "#f43f5e",
+      Irish: "#22c55e",
+      NorthernIrish: "#84cc16",
+      Canadian: "#38bdf8",
+      Indian: "#f59e0b",
+      Australian: "#e879f9",
+      SouthAfrican: "#fb923c",
+      Welsh: "#a78bfa",
+      NewZealand: "#14b8a6",
+      British: "#818cf8",
+    };
+
+    function initPcaMap(data) {
+      const selX = $("mapAxisX");
+      const selY = $("mapAxisY");
+      selX.innerHTML = "";
+      selY.innerHTML = "";
+      data.components.forEach((pc, i) => {
+        const label = `${pc.name} (${(pc.explained_variance_ratio * 100).toFixed(1)}%)`;
+        selX.appendChild(new Option(label, String(i)));
+        selY.appendChild(new Option(label, String(i)));
+      });
+      selX.value = String(state.mapAxisX);
+      selY.value = String(state.mapAxisY);
+
+      selX.onchange = () => { state.mapAxisX = parseInt(selX.value, 10); drawPcaMap(); };
+      selY.onchange = () => { state.mapAxisY = parseInt(selY.value, 10); drawPcaMap(); };
+      $("mapColorBy").onchange = (e) => { state.mapColorBy = e.target.value; drawPcaMap(); };
+
+      const canvas = $("pcaCanvas");
+      const tooltip = $("pcaTooltip");
+      const pad = 26;
+
+      function canvasToCoords(ev) {
+        const rect = canvas.getBoundingClientRect();
+        const px = ev.clientX - rect.left;
+        const py = ev.clientY - rect.top;
+        const pcX = state.meta.components[state.mapAxisX];
+        const pcY = state.meta.components[state.mapAxisY];
+        const bX = Math.max(pcX.std * 2.5, 1e-3);
+        const bY = Math.max(pcY.std * 2.5, 1e-3);
+        const nx = Math.max(-1, Math.min(1, ((px - pad) / (rect.width - 2 * pad)) * 2 - 1));
+        const ny = Math.max(-1, Math.min(1, 1 - ((py - pad) / (rect.height - 2 * pad)) * 2));
+        return { xVal: nx * bX, yVal: ny * bY, px, py, rect };
+      }
+
+      function applyCanvasSteer(ev) {
+        if (!state.meta) return;
+        const { xVal, yVal } = canvasToCoords(ev);
+        state.targets[state.mapAxisX] = xVal;
+        state.targets[state.mapAxisY] = yVal;
+        $(`pc-slider-${state.mapAxisX}`).value = xVal;
+        $(`pc-slider-${state.mapAxisY}`).value = yVal;
+        updateSliderDisplay(state.mapAxisX);
+        updateSliderDisplay(state.mapAxisY);
+        drawPcaMap();
+      }
+
+      canvas.onpointerdown = (ev) => {
+        state.mapDragging = true;
+        canvas.setPointerCapture(ev.pointerId);
+        applyCanvasSteer(ev);
+      };
+      canvas.onpointerup = () => { state.mapDragging = false; };
+      canvas.onpointerleave = () => {
+        state.mapDragging = false;
+        tooltip.style.display = "none";
+      };
+      canvas.onpointermove = (ev) => {
+        if (!state.meta) return;
+        if (state.mapDragging) {
+          applyCanvasSteer(ev);
+          tooltip.style.display = "none";
+          return;
+        }
+        const rect = canvas.getBoundingClientRect();
+        const mx = ev.clientX - rect.left;
+        const my = ev.clientY - rect.top;
+        const pcX = state.meta.components[state.mapAxisX];
+        const pcY = state.meta.components[state.mapAxisY];
+        const bX = Math.max(pcX.std * 2.5, 1e-3);
+        const bY = Math.max(pcY.std * 2.5, 1e-3);
+
+        let best = null;
+        let bestDist = 11;
+        for (const v of Object.values(state.voices)) {
+          if (!v.id.startsWith("vctk_") && !v.id.startsWith("builtin_")) continue;
+          const vx = pad + ((v.projections[state.mapAxisX] / bX + 1) / 2) * (rect.width - 2 * pad);
+          const vy = pad + ((1 - v.projections[state.mapAxisY] / bY) / 2) * (rect.height - 2 * pad);
+          const d = Math.hypot(mx - vx, my - vy);
+          if (d < bestDist) {
+            bestDist = d;
+            best = v;
+          }
+        }
+        if (best) {
+          tooltip.textContent = best.label;
+          tooltip.style.display = "block";
+          tooltip.style.left = `${Math.min(rect.width - 180, mx + 12)}px`;
+          tooltip.style.top = `${Math.max(6, my - 26)}px`;
+        } else {
+          tooltip.style.display = "none";
+        }
+      };
+
+      window.addEventListener("resize", () => drawPcaMap());
+    }
+
+    function drawPcaMap() {
+      if (!state.meta) return;
+      const canvas = $("pcaCanvas");
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width < 10 || rect.height < 10) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+      const pad = 26;
+      const pcX = state.meta.components[state.mapAxisX];
+      const pcY = state.meta.components[state.mapAxisY];
+      const bX = Math.max(pcX.std * 2.5, 1e-3);
+      const bY = Math.max(pcY.std * 2.5, 1e-3);
+
+      const toX = (val) => pad + ((val / bX + 1) / 2) * (w - 2 * pad);
+      const toY = (val) => pad + ((1 - val / bY) / 2) * (h - 2 * pad);
+
+      // Background & axes
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = "#1f293d";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(toX(0), pad); ctx.lineTo(toX(0), h - pad);
+      ctx.moveTo(pad, toY(0)); ctx.lineTo(w - pad, toY(0));
+      ctx.stroke();
+
+      // Axis labels
+      ctx.fillStyle = "#60708a";
+      ctx.font = "10.5px ui-monospace, Menlo, monospace";
+      ctx.fillText(`${pcX.name} (+2.5σ)`, w - pad - 72, toY(0) - 5);
+      ctx.fillText(`${pcY.name} (+2.5σ)`, toX(0) + 5, pad + 10);
+
+      // Draw VCTK & Built-in speaker dots
+      const seenAccents = new Map();
+      for (const v of Object.values(state.voices)) {
+        if (!v.id.startsWith("vctk_") && !v.id.startsWith("builtin_")) continue;
+        const x = toX(v.projections[state.mapAxisX]);
+        const y = toY(v.projections[state.mapAxisY]);
+        let color = "#64748b";
+        if (v.id.startsWith("builtin_")) {
+          color = "#c084fc";
+        } else if (state.mapColorBy === "gender") {
+          color = v.metadata?.gender === "F" ? "#fb7185" : "#60a5fa";
+        } else {
+          const acc = v.metadata?.accent || "Other";
+          color = ACCENT_COLORS[acc] || "#94a3b8";
+          seenAccents.set(acc, (seenAccents.get(acc) || 0) + 1);
+        }
+        ctx.fillStyle = color;
+        ctx.globalAlpha = v.id.startsWith("builtin_") ? 0.9 : 0.62;
+        ctx.beginPath();
+        ctx.arc(x, y, v.id.startsWith("builtin_") ? 4.2 : 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1.0;
+
+      // Draw base voice marker + steered vector + steered crosshair
+      const voice = state.voices[state.currentVoiceId];
+      if (voice) {
+        const bx = toX(voice.projections[state.mapAxisX]);
+        const by = toY(voice.projections[state.mapAxisY]);
+        const sx = toX(state.targets[state.mapAxisX] ?? 0);
+        const sy = toY(state.targets[state.mapAxisY] ?? 0);
+
+        // Dashed steering vector
+        if (Math.hypot(sx - bx, sy - by) > 2) {
+          ctx.save();
+          ctx.strokeStyle = "rgba(45, 212, 191, 0.7)";
+          ctx.setLineDash([4, 3]);
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(bx, by);
+          ctx.lineTo(sx, sy);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Base voice amber ring
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(bx, by, 6, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Steered target glowing dot
+        ctx.fillStyle = "#2dd4bf";
+        ctx.strokeStyle = "#0b0e14";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Update legend
+      const legendEl = $("pcaLegendItems");
+      if (state.mapColorBy === "gender") {
+        legendEl.innerHTML = `
+          <span><span class="legend-dot" style="background:#fb7185;"></span>Female</span>
+          <span><span class="legend-dot" style="background:#60a5fa;"></span>Male</span>
+          <span><span class="legend-dot" style="background:#c084fc;"></span>CustomVoice</span>
+        `;
+      } else {
+        const topAccents = [...seenAccents.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+        legendEl.innerHTML = topAccents
+          .map(([acc]) => `<span><span class="legend-dot" style="background:${ACCENT_COLORS[acc] || "#94a3b8"};"></span>${acc}</span>`)
+          .join("");
+      }
+    }
+
     // Voice dropdown & slider actions
     $("voiceSelect").addEventListener("change", (e) => selectVoice(e.target.value));
 
@@ -1477,6 +1935,7 @@
         $(`pc-slider-${i}`).value = 0;
         updateSliderDisplay(i);
       });
+      drawPcaMap();
     });
 
     $("randomizeBtn").addEventListener("click", () => {
@@ -1486,6 +1945,7 @@
         $(`pc-slider-${i}`).value = val;
         updateSliderDisplay(i);
       });
+      drawPcaMap();
     });
 
     // Quick instruct chips
@@ -1694,6 +2154,7 @@
               updateSliderDisplay(i);
             });
             $("preserveNormToggle").checked = item.preserveNorm;
+            drawPcaMap();
           }
         });
       });

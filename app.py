@@ -22,6 +22,7 @@ from fastapi.responses import FileResponse, Response
 from huggingface_hub import snapshot_download
 from pydantic import BaseModel, Field
 from qwen_tts import Qwen3TTSModel
+from safetensors.torch import load as safetensors_load
 from safetensors.torch import save as safetensors_save
 
 from speaker_encoder import SpeakerEncoder
@@ -38,12 +39,12 @@ DATA_DIR = BASE_DIR / "data"
 STATIC_DIR = BASE_DIR / "static"
 PCA_NPZ_PATH = DATA_DIR / "pca_model.npz"
 PCA_META_PATH = DATA_DIR / "pca_meta.json"
-DEFAULT_TTS_MODEL = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
+DEFAULT_TTS_MODEL = "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16"
 LOCAL_FALLBACK_TTS_MODELS = (
-    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
     "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16",
     "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16",
     "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16",
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
 )
 
 MODEL_CATALOG = [
@@ -606,6 +607,48 @@ async def generate_speech(req: GenerateRequest):
             "X-Gen-Mode": gen_mode,
         },
     )
+
+
+@app.post("/api/import-embedding")
+async def import_embedding(file: UploadFile = File(...)):
+    if state.pca_mean is None or state.pca_components is None:
+        raise HTTPException(status_code=503, detail="PCA model not loaded")
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    filename = file.filename or "imported.safetensors"
+    try:
+        tensors = safetensors_load(raw)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid .safetensors file: {exc}") from exc
+
+    tensor = tensors.get("speaker_embedding")
+    if tensor is None:
+        # Fallback: first tensor with 2048 elements
+        for v in tensors.values():
+            if v.numel() == 2048:
+                tensor = v
+                break
+    if tensor is None or tensor.numel() != 2048:
+        raise HTTPException(
+            status_code=400,
+            detail="No 2048-D speaker_embedding tensor found in .safetensors file",
+        )
+
+    emb = tensor.detach().to(torch.float32).cpu().numpy().reshape(2048)
+    emb_id = f"custom_{uuid.uuid4().hex[:8]}"
+    state.embeddings[emb_id] = emb
+    projections = project_embedding(emb, state.pca_mean, state.pca_components).tolist()
+
+    stem = Path(filename).stem
+    return {
+        "embedding_id": emb_id,
+        "label": f"Imported: {stem}",
+        "projections": projections,
+        "norm": float(np.linalg.norm(emb)),
+    }
 
 
 @app.post("/api/export-embedding")

@@ -2,15 +2,18 @@
 
 An interactive local Python + web studio for **macOS (Apple Silicon / MPS)** that discovers the top principal components of Qwen3-TTS's 2048-D speaker embedding space, correlates each axis with speaker metadata (gender, age, accent), and lets you steer any voice along **PC1–PC10** in real time.
 
+![Qwen3-TTS Voice PCA Explorer](assets/screenshot.png)
+
 ## Motivation
 
 Qwen3-TTS represents speaker identity as a 2048-dimensional x-vector extracted by an ECAPA-TDNN speaker encoder. Normally, that vector is a black box: you either pick a preset speaker or clone a reference clip verbatim.
 
 By running PCA across 109 multi-speaker VCTK voices (`545` utterances), we uncover an orthogonal, interpretable coordinate system inside the 2048-D speaker space — where **PC1 alone captures 29.0% of variance and correlates with gender at `r = -0.95`**, and subsequent axes capture accent, age, and timbral qualities. This tool lets you:
 
-- **Steer any voice** (the PCA mean, 109 VCTK speakers, CustomVoice's 9 built-in speakers, an uploaded `.wav`/`.mp3` chunk, or a live mic recording) along PC1–PC10 while preserving L2 norm to stay in-distribution.
+- **Explore & steer visually** on an interactive **2D Voice Space Map** (click/drag across any pair of PCs, colored by gender or accent) and 10 calibrated `±2.5σ` sliders with norm preservation.
+- **Start from any voice** — the PCA mean, 109 VCTK speakers (searchable & grouped), CustomVoice's 9 built-in speakers, an uploaded `.wav`/`.mp3` chunk, a live mic recording, or a previously saved `.safetensors` embedding.
 - **Compare models live in the UI** — switch between `Base` (high-fidelity ICL cloning + PCA steering), `CustomVoice` (style `instruct` + 9 built-in voices + PCA steering), and `VoiceDesign`.
-- **Export steered embeddings** as `.safetensors` (`speaker_embedding`, shape `(2048,)`, `float32`) to reuse in downstream TTS pipelines.
+- **Export & re-import steered embeddings** as `.safetensors` (`speaker_embedding`, shape `(2048,)`, `float32`) to reuse in downstream TTS pipelines.
 
 ---
 
