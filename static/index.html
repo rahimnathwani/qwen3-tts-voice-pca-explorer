@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Qwen3-TTS Voice PCA Explorer</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --bg-panel: #121722;
+      --bg-elevated: #182030;
+      --bg-input: #0e131d;
+      --border: #253047;
+      --border-hover: #384a6d;
+      --text: #e6ecf5;
+      --text-muted: #8b9bb4;
+      --text-dim: #60708a;
+      --accent: #6366f1;
+      --accent-hover: #7c7ff5;
+      --accent-glow: rgba(99, 102, 241, 0.28);
+      --teal: #2dd4bf;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --green: #22c55e;
+      --radius: 10px;
+      --radius-sm: 6px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
+      --font-mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(11, 14, 20, 0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, var(--accent), var(--teal));
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 15px;
+      color: #fff;
+      box-shadow: 0 0 18px var(--accent-glow);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
+
+    .brand .subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .status-badges {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .model-switcher {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .model-switcher select {
+      width: auto;
+      min-width: 245px;
+      padding: 5px 10px;
+      font-size: 12px;
+      background: var(--bg-elevated);
+      border-color: var(--border);
+    }
+
+    .control-disabled {
+      opacity: 0.42;
+      pointer-events: none;
+      filter: grayscale(0.45);
+    }
+
+    .disabled-note {
+      display: none;
+      margin-top: 5px;
+      font-size: 11.5px;
+      color: var(--amber);
+    }
+
+    .disabled-note.visible {
+      display: block;
+    }
+
+    .cap-strip {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .cap-pill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text-dim);
+    }
+
+    .cap-pill.on {
+      border-color: rgba(45, 212, 191, 0.45);
+      color: var(--teal);
+      background: rgba(45, 212, 191, 0.08);
+    }
+
+    .cap-pill.off {
+      text-decoration: line-through;
+      opacity: 0.55;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .badge .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    .badge.loading .dot {
+      background: var(--amber);
+      box-shadow: 0 0 8px var(--amber);
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    /* Layout */
+    main {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 20px 24px 48px;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 1080px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    /* Form Controls */
+    label.field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    select, input[type="text"], input[type="number"], textarea {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      padding: 9px 12px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    select:focus, input:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 76px;
+      line-height: 1.45;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 8px 13px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.08s;
+      user-select: none;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: #222c42;
+      border-color: var(--border-hover);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      padding: 10px 18px;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
+    .btn-danger {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: rgba(244, 63, 94, 0.45);
+      color: #fda4af;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: rgba(244, 63, 94, 0.25);
+    }
+
+    .btn-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Base Voice Section */
+    .voice-source-grid {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    @media (max-width: 640px) {
+      .voice-source-grid { grid-template-columns: 1fr; }
+    }
+
+    .voice-meta-strip {
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .rec-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--rose);
+      animation: pulse 0.9s infinite;
+    }
+
+    /* Audio Chunk / Trim Selector */
+    .chunk-box {
+      display: none;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      border: 1px solid rgba(45, 212, 191, 0.35);
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .chunk-box.visible { display: flex; }
+
+    .chunk-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 12.5px;
+    }
+
+    .chunk-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    @media (max-width: 640px) {
+      .chunk-controls { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* PCA Sliders */
+    .sliders-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toggle-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12.5px;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-label input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .sliders-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .pc-row {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 13px 12px;
+      transition: border-color 0.15s;
+    }
+
+    .pc-row.modified {
+      border-color: rgba(99, 102, 241, 0.55);
+    }
+
+    .pc-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .pc-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pc-name {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .pc-var {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--bg-elevated);
+      color: var(--teal);
+      border: 1px solid var(--border);
+    }
+
+    .pc-hint {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .pc-val {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .pc-val .sigma {
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+
+    .pc-val.delta-pos { color: #818cf8; }
+    .pc-val.delta-neg { color: #fb7185; }
+
+    /* Slider track with base-voice tick mark */
+    .slider-wrap {
+      position: relative;
+      height: 24px;
+      display: flex;
+      align-items: center;
+    }
+
+    .slider-zero-tick {
+      position: absolute;
+      left: 50%;
+      top: 5px;
+      bottom: 5px;
+      width: 1px;
+      background: var(--border-hover);
+      pointer-events: none;
+    }
+
+    .slider-base-tick {
+      position: absolute;
+      top: 2px;
+      bottom: 2px;
+      width: 3px;
+      border-radius: 2px;
+      background: var(--amber);
+      transform: translateX(-50%);
+      pointer-events: none;
+      z-index: 2;
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.7);
+    }
+
+    input[type="range"].pc-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 999px;
+      background: #232d42;
+      outline: none;
+      position: relative;
+      z-index: 3;
+      cursor: pointer;
+    }
+
+    input[type="range"].pc-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid #e6ecf5;
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--accent-glow);
+      transition: transform 0.1s;
+    }
+
+    input[type="range"].pc-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    .pc-legend {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .tick-legend {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .tick-swatch {
+      display: inline-block;
+      width: 3px;
+      height: 12px;
+      border-radius: 2px;
+      background: var(--amber);
+    }
+
+    /* Synthesis Controls */
+    .form-group {
+      margin-bottom: 13px;
+    }
+
+    .chip-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 7px;
+    }
+
+    .chip {
+      font-size: 11.5px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .chip:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .synth-options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .seed-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .seed-row input[type="number"] {
+      width: 110px;
+      padding: 6px 9px;
+      font-family: var(--font-mono);
+    }
+
+    .generate-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-banner {
+      display: none;
+      margin-top: 10px;
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      color: #fda4af;
+      font-size: 12.5px;
+    }
+
+    .error-banner.visible { display: block; }
+
+    /* History */
+    .history-empty {
+      text-align: center;
+      padding: 28px 16px;
+      color: var(--text-dim);
+      font-size: 13px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 620px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .history-card {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .history-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .history-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .history-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .history-text {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .delta-tags {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .delta-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .delta-tag.pos { border-color: rgba(99, 102, 241, 0.45); color: #a5b4fc; }
+    .delta-tag.neg { border-color: rgba(244, 63, 94, 0.45); color: #fda4af; }
+
+    audio {
+      width: 100%;
+      height: 36px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-icon">PC</div>
+      <div>
+        <h1>Qwen3-TTS Voice PCA Explorer</h1>
+        <div class="subtitle">Interactive 2048-D Speaker Embedding Steering</div>
+      </div>
+    </div>
+    <div class="status-badges">
+      <div class="model-switcher">
+        <select id="modelSelect" title="Switch Qwen3-TTS 1.7B model variant"></select>
+      </div>
+      <div class="cap-strip" id="capStrip">
+        <span class="cap-pill" id="capIcl">ICL Cloning</span>
+        <span class="cap-pill" id="capInstruct">Instruct</span>
+        <span class="cap-pill" id="capBuiltins">9 Built-ins</span>
+      </div>
+      <span class="badge loading" id="statusBadge"><span class="dot"></span><span id="statusText">Loading metadata…</span></span>
+      <span class="badge" id="varianceBadge">Top-10 Var: —</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Column: Base Voice + PCA Sliders -->
+    <div class="column">
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">1. Base Voice</h2>
+          <span class="tick-legend"><span class="tick-swatch"></span> Amber tick = base voice projection</span>
+        </div>
+
+        <div class="voice-source-grid">
+          <div>
+            <label class="field-label" for="voiceSelect">Select Preset or Uploaded Voice</label>
+            <select id="voiceSelect"></select>
+          </div>
+          <div>
+            <input type="file" id="audioUpload" accept=".wav,.flac,.mp3,.ogg,.m4a,.webm,audio/*" hidden />
+            <button class="btn" id="uploadBtn" type="button">Upload Audio</button>
+          </div>
+          <div>
+            <button class="btn" id="recordBtn" type="button">Record Mic</button>
+          </div>
+        </div>
+
+        <div class="voice-meta-strip" id="voiceMetaStrip">
+          <span id="voiceMetaText">Select a preset voice or upload/record a clip to extract its 2048-D embedding.</span>
+          <span id="encodeStatus" style="font-family: var(--font-mono); color: var(--teal);"></span>
+        </div>
+
+        <div class="chunk-box" id="chunkBox">
+          <div class="chunk-header">
+            <strong id="chunkFilename" style="color: var(--teal);">Audio Clip</strong>
+            <span id="chunkDurationInfo" style="font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted);"></span>
+          </div>
+          <audio id="chunkPreviewAudio" controls></audio>
+          <div class="btn-row">
+            <button class="btn btn-sm" id="chunkMiddle10Btn" type="button">Middle 10s</button>
+            <button class="btn btn-sm" id="chunkMiddle5Btn" type="button">Middle 5s</button>
+            <button class="btn btn-sm" id="chunkFullBtn" type="button">Full Clip</button>
+            <button class="btn btn-sm" id="chunkPlaySelectionBtn" type="button">Preview Selection</button>
+          </div>
+          <div class="chunk-controls">
+            <div>
+              <label class="field-label" for="chunkStartInput">Start (seconds)</label>
+              <input type="number" id="chunkStartInput" step="0.1" min="0" value="0" />
+            </div>
+            <div>
+              <label class="field-label" for="chunkEndInput">End (seconds)</label>
+              <input type="number" id="chunkEndInput" step="0.1" min="0.3" value="8" />
+            </div>
+            <div>
+              <button class="btn btn-primary" id="extractChunkBtn" type="button" style="padding: 9px 14px;">Extract Embedding</button>
+            </div>
+          </div>
+          <div id="chunkRefTextGroup">
+            <label class="field-label" for="chunkRefTextInput">Reference Transcript (optional — enables high-fidelity ICL cloning + PCA steering)</label>
+            <input type="text" id="chunkRefTextInput" placeholder="Verbatim words spoken in the selected chunk (recommended: 6–8s clip)" />
+            <div class="disabled-note" id="iclDisabledNote">ICL cloning only takes effect on the Base model — switch the model selector above to Base for faithful ICL cloning.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">2. Principal Component Sliders (PC1–PC10)</h2>
+          <label class="toggle-label" title="Rescale steered vector back to original L2 norm to reduce out-of-distribution distortion">
+            <input type="checkbox" id="preserveNormToggle" checked />
+            Preserve Norm
+          </label>
+        </div>
+
+        <div class="sliders-toolbar">
+          <div class="btn-row">
+            <button class="btn btn-sm" id="resetBaseBtn" type="button">Reset to Base</button>
+            <button class="btn btn-sm" id="zeroAllBtn" type="button">Zero All (PCA Mean)</button>
+            <button class="btn btn-sm" id="randomizeBtn" type="button">Randomize (±1.5σ)</button>
+          </div>
+          <button class="btn btn-sm" id="exportCurrentBtn" type="button">Export Current (.safetensors)</button>
+        </div>
+
+        <div class="sliders-list" id="slidersContainer"></div>
+      </section>
+    </div>
+
+    <!-- Right Column: Synthesis + Comparison History -->
+    <div class="column">
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">3. Synthesize Speech</h2>
+        </div>
+
+        <div class="form-group">
+          <label class="field-label" for="textInput">Text to Speak</label>
+          <textarea id="textInput">The quick brown fox jumps over the lazy dog near the quiet river bank, testing clarity, pitch, and natural rhythm.</textarea>
+        </div>
+
+        <div class="form-group" id="instructGroup">
+          <label class="field-label" for="instructInput">Style Instruction (optional — CustomVoice / VoiceDesign)</label>
+          <input type="text" id="instructInput" placeholder="e.g., Speak warmly and calmly with a slight smile" />
+          <div class="chip-row" id="instructChips">
+            <span class="chip" data-instruct="">None</span>
+            <span class="chip" data-instruct="Speak slowly, warmly, and calmly.">Warm &amp; Calm</span>
+            <span class="chip" data-instruct="Speak with high energy and excitement!">Excited</span>
+            <span class="chip" data-instruct="Speak softly in a gentle whisper.">Soft Whisper</span>
+            <span class="chip" data-instruct="Speak like a serious news anchor.">News Anchor</span>
+          </div>
+          <div class="disabled-note" id="instructDisabledNote">Style instructions are disabled on the Base model — switch to CustomVoice or VoiceDesign in the header to use instruct.</div>
+        </div>
+
+        <div class="synth-options-grid">
+          <div>
+            <label class="field-label" for="languageSelect">Language</label>
+            <select id="languageSelect">
+              <option value="English" selected>English</option>
+              <option value="Auto">Auto</option>
+              <option value="Chinese">Chinese</option>
+              <option value="Japanese">Japanese</option>
+              <option value="Korean">Korean</option>
+              <option value="French">French</option>
+              <option value="German">German</option>
+              <option value="Spanish">Spanish</option>
+              <option value="Italian">Italian</option>
+              <option value="Portuguese">Portuguese</option>
+              <option value="Russian">Russian</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="field-label">Sampling Seed</label>
+            <div class="seed-row">
+              <label class="toggle-label">
+                <input type="checkbox" id="fixedSeedToggle" checked />
+                Fixed
+              </label>
+              <input type="number" id="seedInput" value="42" min="0" max="2147483647" />
+            </div>
+          </div>
+        </div>
+
+        <div class="generate-bar">
+          <div class="btn-row">
+            <button class="btn btn-primary" id="generateBtn" type="button">
+              <span id="generateBtnLabel">Generate Speech</span>
+            </button>
+            <label class="toggle-label" id="useIclWrap" style="display:none;" title="Condition on both reference audio tokens (ICL) and steered 2048-D x-vector">
+              <input type="checkbox" id="useIclToggle" checked />
+              Use ICL Reference
+            </label>
+          </div>
+          <span id="genTimer" style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);"></span>
+        </div>
+
+        <div class="error-banner" id="errorBanner"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">4. Comparison History (<span id="historyCount">0</span>)</h2>
+          <button class="btn btn-sm" id="clearHistoryBtn" type="button">Clear</button>
+        </div>
+
+        <div id="historyContainer">
+          <div class="history-empty">
+            Generated clips will appear here for side-by-side listening, WAV download, and <code>.safetensors</code> embedding export.
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const state = {
+      meta: null,
+      voices: {},          // id -> { id, label, metadata, projections }
+      currentVoiceId: null,
+      targets: [],         // current slider values (length K)
+      history: [],         // generated clips
+      isGenerating: false,
+      mediaRecorder: null,
+      audioStream: null,
+      audioContext: null,
+      scriptNode: null,
+      recordedSamples: [],
+      recordedSampleRate: 16000,
+      isRecording: false,
+      pendingFile: null,
+      pendingAudioUrl: null,
+      pendingDuration: 0,
+      previewStopTimer: null,
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function showError(msg) {
+      const el = $("errorBanner");
+      if (!msg) {
+        el.textContent = "";
+        el.classList.remove("visible");
+      } else {
+        el.textContent = msg;
+        el.classList.add("visible");
+      }
+    }
+
+    function formatPC(val, std) {
+      const sigma = std > 1e-8 ? val / std : 0;
+      const sign = val >= 0 ? "+" : "";
+      const sSign = sigma >= 0 ? "+" : "";
+      return `${sign}${val.toFixed(3)} <span class="sigma">(${sSign}${sigma.toFixed(2)}σ)</span>`;
+    }
+
+    function buildHintText(pc) {
+      const parts = [];
+      if (pc.gender_r !== null && pc.gender_r !== undefined) {
+        parts.push(`Gender r=${pc.gender_r >= 0 ? "+" : ""}${pc.gender_r.toFixed(2)}`);
+      }
+      if (pc.age_r !== null && pc.age_r !== undefined) {
+        parts.push(`Age r=${pc.age_r >= 0 ? "+" : ""}${pc.age_r.toFixed(2)}`);
+      }
+      if (pc.accent_low && pc.accent_high && pc.accent_low !== pc.accent_high) {
+        parts.push(`Accent: ${pc.accent_low} ↔ ${pc.accent_high}`);
+      }
+      return parts.join("  ·  ") || "Speaker variation axis";
+    }
+
+    function applyModelCapabilities(data) {
+      const supportsIcl = Boolean(data.supports_icl);
+      const supportsInstruct = Boolean(data.supports_instruct);
+      const hasBuiltins = Boolean(data.has_builtin_speakers);
+
+      // Update header capability pills
+      const setPill = (id, on) => {
+        const el = $(id);
+        el.classList.toggle("on", on);
+        el.classList.toggle("off", !on);
+      };
+      setPill("capIcl", supportsIcl);
+      setPill("capInstruct", supportsInstruct);
+      setPill("capBuiltins", hasBuiltins);
+
+      // Populate model selector
+      const modelSel = $("modelSelect");
+      if (Array.isArray(data.available_models)) {
+        modelSel.innerHTML = "";
+        for (const m of data.available_models) {
+          const opt = document.createElement("option");
+          opt.value = m.id;
+          opt.textContent = m.label + (m.cached ? "" : " (downloads ~3.8GB)");
+          modelSel.appendChild(opt);
+        }
+        modelSel.value = data.tts_model;
+      }
+
+      // Disable/gray out Style Instruction on Base
+      $("instructInput").disabled = !supportsInstruct;
+      $("instructChips").classList.toggle("control-disabled", !supportsInstruct);
+      $("instructInput").classList.toggle("control-disabled", !supportsInstruct);
+      $("instructDisabledNote").classList.toggle("visible", !supportsInstruct);
+
+      // Disable/gray out ICL Reference Transcript + Use ICL toggle on CustomVoice / VoiceDesign
+      $("chunkRefTextInput").disabled = !supportsIcl;
+      $("chunkRefTextInput").classList.toggle("control-disabled", !supportsIcl);
+      $("iclDisabledNote").classList.toggle("visible", !supportsIcl);
+
+      const useIclToggle = $("useIclToggle");
+      useIclToggle.disabled = !supportsIcl;
+      $("useIclWrap").classList.toggle("control-disabled", !supportsIcl);
+      if (!supportsIcl) {
+        useIclToggle.checked = false;
+      }
+    }
+
+    function refreshVoiceDropdown(data, preserveCustom = false) {
+      const prevVoiceId = state.currentVoiceId;
+      const customVoices = preserveCustom
+        ? Object.values(state.voices).filter((v) => v.id.startsWith("custom_"))
+        : [];
+
+      state.voices = {};
+      const voiceSelect = $("voiceSelect");
+      voiceSelect.innerHTML = "";
+
+      for (const preset of data.presets) {
+        state.voices[preset.id] = preset;
+        const opt = document.createElement("option");
+        opt.value = preset.id;
+        opt.textContent = preset.label;
+        voiceSelect.appendChild(opt);
+      }
+
+      for (const cv of customVoices) {
+        state.voices[cv.id] = cv;
+        const opt = document.createElement("option");
+        opt.value = cv.id;
+        opt.textContent = cv.label;
+        voiceSelect.appendChild(opt);
+      }
+
+      if (prevVoiceId && state.voices[prevVoiceId]) {
+        selectVoice(prevVoiceId);
+      } else if (data.presets.length > 0) {
+        selectVoice(data.presets[0].id);
+      }
+    }
+
+    async function init() {
+      try {
+        const res = await fetch("/api/meta");
+        if (!res.ok) throw new Error(`Failed to load /api/meta (${res.status})`);
+        const data = await res.json();
+        state.meta = data;
+
+        const totalVar = data.components.reduce((acc, c) => acc + c.explained_variance_ratio, 0);
+        if (data.mode === "orthogonal_fallback") {
+          $("varianceBadge").textContent = "Offline Orthogonal Axes (run build_pca.py for VCTK PCs)";
+          $("statusText").textContent = `${data.device.toUpperCase()} · ${data.tts_model_type} · Offline`;
+        } else {
+          $("varianceBadge").textContent = `Top-${data.components.length} Var: ${(totalVar * 100).toFixed(1)}%`;
+          $("statusText").textContent = `${data.device.toUpperCase()} · ${data.tts_model_type} · ${data.num_speakers} spk`;
+        }
+        $("statusBadge").classList.remove("loading");
+
+        // Populate languages if provided
+        if (Array.isArray(data.supported_languages) && data.supported_languages.length > 0) {
+          const langSel = $("languageSelect");
+          const current = langSel.value;
+          langSel.innerHTML = "";
+          const ordered = ["English", "Auto", ...data.supported_languages.filter(
+            (l) => l.toLowerCase() !== "english" && l.toLowerCase() !== "auto"
+          )];
+          for (const lang of ordered) {
+            const opt = document.createElement("option");
+            opt.value = lang;
+            opt.textContent = lang.charAt(0).toUpperCase() + lang.slice(1);
+            langSel.appendChild(opt);
+          }
+          langSel.value = current || "English";
+        }
+
+        renderSliders();
+        applyModelCapabilities(data);
+        refreshVoiceDropdown(data, false);
+      } catch (err) {
+        $("statusText").textContent = "Server error";
+        showError(err.message);
+      }
+    }
+
+    $("modelSelect").addEventListener("change", async (e) => {
+      const targetModel = e.target.value;
+      if (!state.meta || targetModel === state.meta.tts_model) return;
+      showError(null);
+      const sel = $("modelSelect");
+      const genBtn = $("generateBtn");
+      sel.disabled = true;
+      genBtn.disabled = true;
+      $("statusBadge").classList.add("loading");
+      $("statusText").textContent = "Switching model (~45s)…";
+
+      try {
+        const res = await fetch("/api/switch-model", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model_id: targetModel }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || "Failed to switch model");
+        }
+        const data = await res.json();
+        state.meta = data;
+        $("statusBadge").classList.remove("loading");
+        $("statusText").textContent = `${data.device.toUpperCase()} · ${data.tts_model_type} · ${data.num_speakers} spk`;
+        applyModelCapabilities(data);
+        refreshVoiceDropdown(data, true);
+      } catch (err) {
+        $("statusBadge").classList.remove("loading");
+        $("statusText").textContent = "Switch failed";
+        sel.value = state.meta.tts_model;
+        showError(err.message);
+      } finally {
+        sel.disabled = false;
+        genBtn.disabled = false;
+      }
+    });
+
+    function renderSliders() {
+      const container = $("slidersContainer");
+      container.innerHTML = "";
+      state.meta.components.forEach((pc, i) => {
+        const bound = Math.max(pc.std * 2.5, 1e-3);
+        const step = bound / 100;
+        const row = document.createElement("div");
+        row.className = "pc-row";
+        row.id = `pc-row-${i}`;
+
+        row.innerHTML = `
+          <div class="pc-top">
+            <div class="pc-title-group">
+              <span class="pc-name">PC${i + 1}</span>
+              <span class="pc-var">${(pc.explained_variance_ratio * 100).toFixed(1)}%</span>
+              <span class="pc-hint">${buildHintText(pc)}</span>
+            </div>
+            <div class="pc-val" id="pc-val-${i}">0.000</div>
+          </div>
+          <div class="slider-wrap">
+            <div class="slider-zero-tick"></div>
+            <div class="slider-base-tick" id="pc-tick-${i}" style="left: 50%;" title="Base voice projection"></div>
+            <input
+              type="range"
+              class="pc-slider"
+              id="pc-slider-${i}"
+              min="${(-bound).toFixed(5)}"
+              max="${bound.toFixed(5)}"
+              step="${step.toFixed(5)}"
+              value="0"
+            />
+          </div>
+          <div class="pc-legend">
+            <span>-2.5σ (${(-bound).toFixed(2)})</span>
+            <span>0 (mean)</span>
+            <span>+2.5σ (+${bound.toFixed(2)})</span>
+          </div>
+        `;
+        container.appendChild(row);
+
+        const slider = $(`pc-slider-${i}`);
+        slider.addEventListener("input", () => {
+          state.targets[i] = parseFloat(slider.value);
+          updateSliderDisplay(i);
+        });
+      });
+    }
+
+    function updateSliderDisplay(i) {
+      const pc = state.meta.components[i];
+      const val = state.targets[i];
+      const voice = state.voices[state.currentVoiceId];
+      const baseVal = voice ? voice.projections[i] : 0;
+      const diff = val - baseVal;
+
+      const valEl = $(`pc-val-${i}`);
+      valEl.innerHTML = formatPC(val, pc.std);
+      valEl.classList.remove("delta-pos", "delta-neg");
+      const row = $(`pc-row-${i}`);
+      if (Math.abs(diff) > pc.std * 0.05) {
+        row.classList.add("modified");
+        valEl.classList.add(diff > 0 ? "delta-pos" : "delta-neg");
+      } else {
+        row.classList.remove("modified");
+      }
+    }
+
+    function selectVoice(voiceId) {
+      const voice = state.voices[voiceId];
+      if (!voice) return;
+      state.currentVoiceId = voiceId;
+      $("voiceSelect").value = voiceId;
+
+      state.targets = voice.projections.slice();
+      state.meta.components.forEach((pc, i) => {
+        const bound = Math.max(pc.std * 2.5, 1e-3);
+        const baseVal = voice.projections[i];
+        const clamped = Math.max(-bound, Math.min(bound, baseVal));
+        state.targets[i] = clamped;
+
+        const slider = $(`pc-slider-${i}`);
+        slider.value = clamped;
+
+        const pct = ((clamped + bound) / (2 * bound)) * 100;
+        const tick = $(`pc-tick-${i}`);
+        tick.style.left = `${Math.max(0, Math.min(100, pct))}%`;
+        tick.title = `Base voice: ${baseVal.toFixed(3)} (${(baseVal / pc.std).toFixed(2)}σ)`;
+
+        updateSliderDisplay(i);
+      });
+
+      const meta = voice.metadata || {};
+      const details = [];
+      if (meta.gender) details.push(`Gender: ${meta.gender}`);
+      if (meta.age) details.push(`Age: ${meta.age}`);
+      if (meta.accent) details.push(`Accent: ${meta.accent}`);
+      if (meta.source) details.push(`Source: ${meta.source}`);
+      $("voiceMetaText").textContent = details.length > 0 ? `${voice.label} — ${details.join(" · ")}` : voice.label;
+      const supportsIcl = Boolean(state.meta && state.meta.supports_icl);
+      $("useIclWrap").style.display = voice.has_icl ? "inline-flex" : "none";
+      $("useIclToggle").disabled = !supportsIcl;
+      $("useIclWrap").classList.toggle("control-disabled", !supportsIcl);
+      if (voice.has_icl && supportsIcl) {
+        $("useIclToggle").checked = true;
+      } else if (!supportsIcl) {
+        $("useIclToggle").checked = false;
+      }
+    }
+
+    // Upload audio file -> open chunk/trim selector
+    function setChunkRange(start, end) {
+      const dur = state.pendingDuration || 10;
+      const s = Math.max(0, Math.min(dur - 0.3, start));
+      const e = Math.max(s + 0.3, Math.min(dur, end));
+      $("chunkStartInput").value = s.toFixed(1);
+      $("chunkEndInput").value = e.toFixed(1);
+    }
+
+    function setMiddleChunk(windowSec) {
+      const dur = state.pendingDuration;
+      if (!dur || dur <= windowSec) {
+        setChunkRange(0, dur || windowSec);
+      } else {
+        const mid = dur / 2;
+        setChunkRange(mid - windowSec / 2, mid + windowSec / 2);
+      }
+    }
+
+    $("uploadBtn").addEventListener("click", () => $("audioUpload").click());
+    $("audioUpload").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      showError(null);
+
+      if (state.pendingAudioUrl) URL.revokeObjectURL(state.pendingAudioUrl);
+      state.pendingFile = file;
+      state.pendingAudioUrl = URL.createObjectURL(file);
+
+      const audioEl = $("chunkPreviewAudio");
+      audioEl.src = state.pendingAudioUrl;
+      $("chunkFilename").textContent = file.name;
+      $("chunkDurationInfo").textContent = "Loading duration…";
+      $("chunkBox").classList.add("visible");
+
+      audioEl.onloadedmetadata = () => {
+        const dur = isFinite(audioEl.duration) ? audioEl.duration : 10;
+        state.pendingDuration = dur;
+        $("chunkDurationInfo").textContent = `Total length: ${dur.toFixed(1)}s`;
+        $("chunkStartInput").max = dur.toFixed(1);
+        $("chunkEndInput").max = dur.toFixed(1);
+        // Auto-select middle 10s for longer clips, or full clip if <= 15s
+        if (dur > 15) {
+          setMiddleChunk(10);
+        } else {
+          setChunkRange(0, dur);
+        }
+      };
+
+      e.target.value = "";
+    });
+
+    $("chunkMiddle10Btn").addEventListener("click", () => setMiddleChunk(10));
+    $("chunkMiddle5Btn").addEventListener("click", () => setMiddleChunk(5));
+    $("chunkFullBtn").addEventListener("click", () => setChunkRange(0, state.pendingDuration));
+
+    $("chunkPlaySelectionBtn").addEventListener("click", () => {
+      const audioEl = $("chunkPreviewAudio");
+      const start = parseFloat($("chunkStartInput").value || "0");
+      const end = parseFloat($("chunkEndInput").value || "10");
+      if (state.previewStopTimer) clearTimeout(state.previewStopTimer);
+      audioEl.currentTime = Math.max(0, start);
+      audioEl.play();
+      const ms = Math.max(250, (end - start) * 1000);
+      state.previewStopTimer = setTimeout(() => audioEl.pause(), ms);
+    });
+
+    $("extractChunkBtn").addEventListener("click", async () => {
+      if (!state.pendingFile) return;
+      const start = parseFloat($("chunkStartInput").value || "0");
+      const end = parseFloat($("chunkEndInput").value || "0");
+      const refText = $("chunkRefTextInput").value.trim();
+      await encodeAudioBlob(state.pendingFile, state.pendingFile.name, start, end, refText || null);
+    });
+
+    async function encodeAudioBlob(blob, filename, startSec = null, endSec = null, refText = null) {
+      showError(null);
+      $("encodeStatus").textContent = "Encoding voice…";
+      try {
+        const fd = new FormData();
+        fd.append("file", blob, filename);
+        if (startSec !== null && !Number.isNaN(startSec)) fd.append("start_sec", String(startSec));
+        if (endSec !== null && !Number.isNaN(endSec)) fd.append("end_sec", String(endSec));
+        if (refText) fd.append("ref_text", refText);
+        const res = await fetch("/api/encode", { method: "POST", body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || "Failed to encode audio");
+        }
+        const data = await res.json();
+        const voiceObj = {
+          id: data.embedding_id,
+          label: data.label,
+          projections: data.projections,
+          has_icl: Boolean(data.has_icl),
+          metadata: { source: `${filename} (${data.clip_start_sec.toFixed(1)}s–${data.clip_end_sec.toFixed(1)}s, ${data.duration_sec.toFixed(1)}s${data.has_icl ? ", ICL enabled" : ""})` },
+        };
+        state.voices[voiceObj.id] = voiceObj;
+
+        const opt = document.createElement("option");
+        opt.value = voiceObj.id;
+        opt.textContent = voiceObj.label;
+        $("voiceSelect").appendChild(opt);
+        selectVoice(voiceObj.id);
+        $("encodeStatus").textContent = `Encoded ${data.duration_sec.toFixed(1)}s${data.has_icl ? " (ICL + x-vec)" : " (x-vec)"}`;
+      } catch (err) {
+        $("encodeStatus").textContent = "";
+        showError(err.message);
+      }
+    }
+
+    // In-browser WAV microphone recorder (avoids WebM/Opus decoding issues)
+    function encodePCMToWav(samples, sampleRate) {
+      const buffer = new ArrayBuffer(44 + samples.length * 2);
+      const view = new DataView(buffer);
+      const writeStr = (offset, str) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+      };
+      writeStr(0, "RIFF");
+      view.setUint32(4, 36 + samples.length * 2, true);
+      writeStr(8, "WAVE");
+      writeStr(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, 1, true); // mono
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, "data");
+      view.setUint32(40, samples.length * 2, true);
+      let offset = 44;
+      for (let i = 0; i < samples.length; i++) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        offset += 2;
+      }
+      return new Blob([buffer], { type: "audio/wav" });
+    }
+
+    $("recordBtn").addEventListener("click", async () => {
+      const btn = $("recordBtn");
+      if (!state.isRecording) {
+        showError(null);
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const source = ctx.createMediaStreamSource(stream);
+          const processor = ctx.createScriptProcessor(4096, 1, 1);
+          state.recordedSamples = [];
+          state.recordedSampleRate = ctx.sampleRate;
+          processor.onaudioprocess = (ev) => {
+            if (!state.isRecording) return;
+            const channel = ev.inputBuffer.getChannelData(0);
+            state.recordedSamples.push(new Float32Array(channel));
+          };
+          source.connect(processor);
+          processor.connect(ctx.destination);
+
+          state.audioStream = stream;
+          state.audioContext = ctx;
+          state.scriptNode = processor;
+          state.isRecording = true;
+          btn.classList.add("btn-danger");
+          btn.innerHTML = `<span class="rec-indicator"></span> Stop Recording`;
+          $("encodeStatus").textContent = "Recording… speak 3–8 seconds";
+        } catch (err) {
+          showError(`Microphone error: ${err.message}`);
+        }
+      } else {
+        state.isRecording = false;
+        btn.classList.remove("btn-danger");
+        btn.textContent = "Record Mic";
+        try {
+          state.scriptNode?.disconnect();
+          state.audioStream?.getTracks().forEach((t) => t.stop());
+          await state.audioContext?.close();
+        } catch (_) {}
+
+        const totalLen = state.recordedSamples.reduce((a, b) => a + b.length, 0);
+        if (totalLen < state.recordedSampleRate * 0.5) {
+          $("encodeStatus").textContent = "";
+          showError("Recording too short — please speak for at least 1 second.");
+          return;
+        }
+        const merged = new Float32Array(totalLen);
+        let offset = 0;
+        for (const chunk of state.recordedSamples) {
+          merged.set(chunk, offset);
+          offset += chunk.length;
+        }
+        const wavBlob = encodePCMToWav(merged, state.recordedSampleRate);
+        const ts = new Date().toLocaleTimeString([], { hour12: false }).replace(/:/g, "");
+        await encodeAudioBlob(wavBlob, `mic_${ts}.wav`);
+      }
+    });
+
+    // Voice dropdown & slider actions
+    $("voiceSelect").addEventListener("change", (e) => selectVoice(e.target.value));
+
+    $("resetBaseBtn").addEventListener("click", () => {
+      if (state.currentVoiceId) selectVoice(state.currentVoiceId);
+    });
+
+    $("zeroAllBtn").addEventListener("click", () => {
+      state.meta.components.forEach((_, i) => {
+        state.targets[i] = 0;
+        $(`pc-slider-${i}`).value = 0;
+        updateSliderDisplay(i);
+      });
+    });
+
+    $("randomizeBtn").addEventListener("click", () => {
+      state.meta.components.forEach((pc, i) => {
+        const val = (Math.random() * 2 - 1) * 1.5 * pc.std;
+        state.targets[i] = val;
+        $(`pc-slider-${i}`).value = val;
+        updateSliderDisplay(i);
+      });
+    });
+
+    // Quick instruct chips
+    document.querySelectorAll(".chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        $("instructInput").value = chip.dataset.instruct;
+      });
+    });
+
+    // Export safetensors helper
+    async function exportSafetensors(embeddingId, targets, preserveNorm, name) {
+      showError(null);
+      try {
+        const res = await fetch("/api/export-embedding", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            embedding_id: embeddingId,
+            targets,
+            preserve_norm: preserveNorm,
+            name,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || "Export failed");
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${name.replace(/[^a-zA-Z0-9_-]+/g, "_")}.safetensors`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    $("exportCurrentBtn").addEventListener("click", () => {
+      const voice = state.voices[state.currentVoiceId];
+      if (!voice) return;
+      exportSafetensors(
+        state.currentVoiceId,
+        state.targets.slice(),
+        $("preserveNormToggle").checked,
+        `steered_${voice.id}`
+      );
+    });
+
+    // Generate speech
+    $("generateBtn").addEventListener("click", async () => {
+      if (state.isGenerating || !state.currentVoiceId) return;
+      const text = $("textInput").value.trim();
+      if (!text) {
+        showError("Please enter text to synthesize.");
+        return;
+      }
+
+      showError(null);
+      state.isGenerating = true;
+      const btn = $("generateBtn");
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span><span>Generating…</span>`;
+
+      const startTs = performance.now();
+      const timerInterval = setInterval(() => {
+        const sec = ((performance.now() - startTs) / 1000).toFixed(1);
+        $("genTimer").textContent = `${sec}s elapsed`;
+      }, 100);
+
+      const useFixedSeed = $("fixedSeedToggle").checked;
+      const seed = useFixedSeed ? parseInt($("seedInput").value || "42", 10) : Math.floor(Math.random() * 2147483647);
+      const instruct = $("instructInput").value.trim();
+      const language = $("languageSelect").value;
+      const preserveNorm = $("preserveNormToggle").checked;
+      const useIcl = $("useIclToggle").checked;
+      const targetsSnapshot = state.targets.slice();
+      const voice = state.voices[state.currentVoiceId];
+
+      try {
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            embedding_id: state.currentVoiceId,
+            targets: targetsSnapshot,
+            text,
+            instruct: instruct || null,
+            language,
+            preserve_norm: preserveNorm,
+            use_icl: useIcl,
+            seed,
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || `Generation failed (${res.status})`);
+        }
+
+        const wavBlob = await res.blob();
+        const genTime = res.headers.get("X-Generation-Time") || ((performance.now() - startTs) / 1000).toFixed(2);
+        const audioUrl = URL.createObjectURL(wavBlob);
+
+        // Compute compact slider deltas relative to base voice
+        const deltas = [];
+        state.meta.components.forEach((pc, i) => {
+          const baseVal = voice.projections[i];
+          const diffSigma = (targetsSnapshot[i] - baseVal) / Math.max(pc.std, 1e-6);
+          if (Math.abs(diffSigma) >= 0.08) {
+            deltas.push({ pc: i + 1, diffSigma });
+          }
+        });
+
+        state.history.unshift({
+          id: Date.now(),
+          voiceId: state.currentVoiceId,
+          voiceLabel: voice.label,
+          text,
+          instruct,
+          language,
+          seed,
+          preserveNorm,
+          targets: targetsSnapshot,
+          deltas,
+          genTime,
+          audioUrl,
+        });
+
+        renderHistory();
+        $("genTimer").textContent = `Done in ${genTime}s`;
+      } catch (err) {
+        showError(err.message);
+        $("genTimer").textContent = "";
+      } finally {
+        clearInterval(timerInterval);
+        state.isGenerating = false;
+        btn.disabled = false;
+        btn.innerHTML = `<span id="generateBtnLabel">Generate Speech</span>`;
+      }
+    });
+
+    function renderHistory() {
+      $("historyCount").textContent = state.history.length;
+      const container = $("historyContainer");
+      if (state.history.length === 0) {
+        container.innerHTML = `<div class="history-empty">Generated clips will appear here for side-by-side listening, WAV download, and <code>.safetensors</code> embedding export.</div>`;
+        return;
+      }
+
+      const list = document.createElement("div");
+      list.className = "history-list";
+
+      state.history.forEach((item, idx) => {
+        const card = document.createElement("div");
+        card.className = "history-card";
+
+        const deltaHtml = item.deltas.length
+          ? item.deltas
+              .map((d) => {
+                const cls = d.diffSigma >= 0 ? "pos" : "neg";
+                const sign = d.diffSigma >= 0 ? "+" : "";
+                return `<span class="delta-tag ${cls}">PC${d.pc} ${sign}${d.diffSigma.toFixed(2)}σ</span>`;
+              })
+              .join("")
+          : `<span class="delta-tag">Base voice (no shift)</span>`;
+
+        card.innerHTML = `
+          <div class="history-card-top">
+            <span class="history-title">#${state.history.length - idx} · ${item.voiceLabel}</span>
+            <span class="history-meta">seed=${item.seed} · ${item.genTime}s · ${item.preserveNorm ? "norm-locked" : "free-norm"}</span>
+          </div>
+          <div class="history-text">"${item.text}"${item.instruct ? ` — [${item.instruct}]` : ""}</div>
+          <div class="delta-tags">${deltaHtml}</div>
+          <audio controls src="${item.audioUrl}"></audio>
+          <div class="btn-row">
+            <a class="btn btn-sm" href="${item.audioUrl}" download="qwen3_pca_${item.id}.wav" style="text-decoration:none;">Download WAV</a>
+            <button class="btn btn-sm" type="button" data-export-idx="${idx}">Export Embedding (.safetensors)</button>
+            <button class="btn btn-sm" type="button" data-load-idx="${idx}">Load Sliders</button>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+
+      container.innerHTML = "";
+      container.appendChild(list);
+
+      container.querySelectorAll("[data-export-idx]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const item = state.history[parseInt(btn.dataset.exportIdx, 10)];
+          exportSafetensors(item.voiceId, item.targets, item.preserveNorm, `clip_${item.id}`);
+        });
+      });
+
+      container.querySelectorAll("[data-load-idx]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const item = state.history[parseInt(btn.dataset.loadIdx, 10)];
+          if (state.voices[item.voiceId]) {
+            selectVoice(item.voiceId);
+            item.targets.forEach((v, i) => {
+              state.targets[i] = v;
+              $(`pc-slider-${i}`).value = v;
+              updateSliderDisplay(i);
+            });
+            $("preserveNormToggle").checked = item.preserveNorm;
+          }
+        });
+      });
+    }
+
+    $("clearHistoryBtn").addEventListener("click", () => {
+      state.history.forEach((h) => URL.revokeObjectURL(h.audioUrl));
+      state.history = [];
+      renderHistory();
+    });
+
+    init();
+  </script>
+</body>
+</html>

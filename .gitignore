@@ -1,0 +1,16 @@
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+uv.lock
+
+# macOS
+.DS_Store
+
+# Generated / temporary audio & exported embeddings
+*.wav
+*.mp3
+*.flac
+*.safetensors

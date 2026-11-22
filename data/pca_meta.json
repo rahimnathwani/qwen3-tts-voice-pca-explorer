@@ -1,0 +1,1392 @@
+{
+  "dataset": "mteb/cstr-vctk-accent-mini",
+  "encoder_model": "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16::speaker_encoder",
+  "embedding_dim": 2048,
+  "num_speakers": 109,
+  "num_clips": 545,
+  "num_components": 10,
+  "cumulative_explained_variance": 0.5923684239387512,
+  "metadata_coverage": {
+    "gender_count": 109,
+    "age_count": 109,
+    "accent_count": 109,
+    "unique_accents": [
+      "American",
+      "Australian",
+      "British",
+      "Canadian",
+      "English",
+      "Indian",
+      "Irish",
+      "NewZealand",
+      "NorthernIrish",
+      "Scottish",
+      "SouthAfrican",
+      "Unknown",
+      "Welsh"
+    ]
+  },
+  "components": [
+    {
+      "index": 0,
+      "name": "PC1",
+      "explained_variance_ratio": 0.2895925045013428,
+      "min": -2.159353733062744,
+      "max": 3.081707000732422,
+      "std": 1.5153697729110718,
+      "gender_r": -0.9515867796656052,
+      "gender_p": 1.2265739101113316e-56,
+      "age_r": 0.01786663068566814,
+      "age_p": 0.8537017911977125,
+      "accent_low": "SouthAfrican",
+      "accent_high": "Australian",
+      "accent_low_mean": -0.6975029408931732,
+      "accent_high_mean": 1.9128552079200745
+    },
+    {
+      "index": 1,
+      "name": "PC2",
+      "explained_variance_ratio": 0.05960512161254883,
+      "min": -1.849513292312622,
+      "max": 1.1006346940994263,
+      "std": 0.6874905824661255,
+      "gender_r": 0.02577569942138995,
+      "gender_p": 0.7902023041455115,
+      "age_r": -0.09034350877909406,
+      "age_p": 0.35017390515219676,
+      "accent_low": "Australian",
+      "accent_high": "Scottish",
+      "accent_low_mean": -1.2993862330913544,
+      "accent_high_mean": 0.3745145690872481
+    },
+    {
+      "index": 2,
+      "name": "PC3",
+      "explained_variance_ratio": 0.04994000867009163,
+      "min": -1.5965346097946167,
+      "max": 1.8245666027069092,
+      "std": 0.6292878985404968,
+      "gender_r": -0.08153797428214607,
+      "gender_p": 0.3993001353173763,
+      "age_r": -0.038430887992247545,
+      "age_p": 0.6915509753407887,
+      "accent_low": "English",
+      "accent_high": "Indian",
+      "accent_low_mean": -0.26682988554239273,
+      "accent_high_mean": 0.8612605134646097
+    },
+    {
+      "index": 3,
+      "name": "PC4",
+      "explained_variance_ratio": 0.03542724624276161,
+      "min": -1.321749210357666,
+      "max": 1.1663403511047363,
+      "std": 0.5300217866897583,
+      "gender_r": 0.006958664360268041,
+      "gender_p": 0.9427500324346777,
+      "age_r": 0.2050653099407181,
+      "age_p": 0.03243165862988803,
+      "accent_low": "Australian",
+      "accent_high": "Scottish",
+      "accent_low_mean": -0.34458745270967484,
+      "accent_high_mean": 0.11272746961759894
+    },
+    {
+      "index": 4,
+      "name": "PC5",
+      "explained_variance_ratio": 0.03389905393123627,
+      "min": -1.1299489736557007,
+      "max": 1.3214739561080933,
+      "std": 0.5184643268585205,
+      "gender_r": -0.12386156458139487,
+      "gender_p": 0.1994249444448607,
+      "age_r": -0.030726207928456345,
+      "age_p": 0.7511164491849182,
+      "accent_low": "Indian",
+      "accent_high": "SouthAfrican",
+      "accent_low_mean": -0.37009960412979126,
+      "accent_high_mean": 0.1779552958905697
+    },
+    {
+      "index": 5,
+      "name": "PC6",
+      "explained_variance_ratio": 0.030085448175668716,
+      "min": -1.166033148765564,
+      "max": 1.2751058340072632,
+      "std": 0.48843103647232056,
+      "gender_r": 0.10924737572790309,
+      "gender_p": 0.2581329814388459,
+      "age_r": 0.04395300048622729,
+      "age_p": 0.6499642720736296,
+      "accent_low": "Indian",
+      "accent_high": "American",
+      "accent_low_mean": -0.19172515471776327,
+      "accent_high_mean": 0.23268205246755055
+    },
+    {
+      "index": 6,
+      "name": "PC7",
+      "explained_variance_ratio": 0.027265764772892,
+      "min": -1.170715570449829,
+      "max": 1.3468939065933228,
+      "std": 0.46497946977615356,
+      "gender_r": -0.08395136874336864,
+      "gender_p": 0.3854454071982934,
+      "age_r": -0.09564865947538428,
+      "age_p": 0.3224874514402499,
+      "accent_low": "SouthAfrican",
+      "accent_high": "Canadian",
+      "accent_low_mean": -0.36164578795433044,
+      "accent_high_mean": 0.1357114352285862
+    },
+    {
+      "index": 7,
+      "name": "PC8",
+      "explained_variance_ratio": 0.024283098056912422,
+      "min": -1.5951180458068848,
+      "max": 1.0879616737365723,
+      "std": 0.4388105571269989,
+      "gender_r": -0.08792286614713107,
+      "gender_p": 0.3632862142951721,
+      "age_r": -0.07007891648736574,
+      "age_p": 0.4690035755582324,
+      "accent_low": "Australian",
+      "accent_high": "Indian",
+      "accent_low_mean": -0.3164623752236366,
+      "accent_high_mean": 0.6695039669672648
+    },
+    {
+      "index": 8,
+      "name": "PC9",
+      "explained_variance_ratio": 0.022033177316188812,
+      "min": -1.1723201274871826,
+      "max": 1.0586729049682617,
+      "std": 0.4179877042770386,
+      "gender_r": -0.06252845977303245,
+      "gender_p": 0.5183295058844283,
+      "age_r": 0.11242979460722233,
+      "age_p": 0.24443876361807587,
+      "accent_low": "Australian",
+      "accent_high": "SouthAfrican",
+      "accent_low_mean": -0.2414311319589615,
+      "accent_high_mean": 0.4572029188275337
+    },
+    {
+      "index": 9,
+      "name": "PC10",
+      "explained_variance_ratio": 0.020237049087882042,
+      "min": -0.8610569834709167,
+      "max": 0.8714814186096191,
+      "std": 0.4005885720252991,
+      "gender_r": -0.010766245176899367,
+      "gender_p": 0.9115289342954119,
+      "age_r": -0.016943573874434417,
+      "age_p": 0.8611823830175335,
+      "accent_low": "Australian",
+      "accent_high": "SouthAfrican",
+      "accent_low_mean": -0.3513684831559658,
+      "accent_high_mean": 0.15889130998402834
+    }
+  ],
+  "presets": [
+    {
+      "id": "vctk_p307",
+      "label": "p307 \u00b7 Female \u00b7 23y \u00b7 Canadian",
+      "metadata": {
+        "speaker_id": "p307",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "Canadian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p351",
+      "label": "p351 \u00b7 Female \u00b7 21y \u00b7 NorthernIrish",
+      "metadata": {
+        "speaker_id": "p351",
+        "gender": "F",
+        "age": 21.0,
+        "accent": "NorthernIrish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p313",
+      "label": "p313 \u00b7 Female \u00b7 24y \u00b7 Irish",
+      "metadata": {
+        "speaker_id": "p313",
+        "gender": "F",
+        "age": 24.0,
+        "accent": "Irish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p273",
+      "label": "p273 \u00b7 Male \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p273",
+        "gender": "M",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p285",
+      "label": "p285 \u00b7 Male \u00b7 21y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p285",
+        "gender": "M",
+        "age": 21.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p360",
+      "label": "p360 \u00b7 Male \u00b7 19y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p360",
+        "gender": "M",
+        "age": 19.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p294",
+      "label": "p294 \u00b7 Female \u00b7 33y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p294",
+        "gender": "F",
+        "age": 33.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p297",
+      "label": "p297 \u00b7 Female \u00b7 20y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p297",
+        "gender": "F",
+        "age": 20.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p299",
+      "label": "p299 \u00b7 Female \u00b7 25y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p299",
+        "gender": "F",
+        "age": 25.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p300",
+      "label": "p300 \u00b7 Female \u00b7 23y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p300",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p301",
+      "label": "p301 \u00b7 Female \u00b7 23y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p301",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p305",
+      "label": "p305 \u00b7 Female \u00b7 19y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p305",
+        "gender": "F",
+        "age": 19.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p306",
+      "label": "p306 \u00b7 Female \u00b7 21y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p306",
+        "gender": "F",
+        "age": 21.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p308",
+      "label": "p308 \u00b7 Female \u00b7 18y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p308",
+        "gender": "F",
+        "age": 18.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p310",
+      "label": "p310 \u00b7 Female \u00b7 21y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p310",
+        "gender": "F",
+        "age": 21.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p318",
+      "label": "p318 \u00b7 Female \u00b7 32y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p318",
+        "gender": "F",
+        "age": 32.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p329",
+      "label": "p329 \u00b7 Female \u00b7 23y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p329",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p330",
+      "label": "p330 \u00b7 Female \u00b7 26y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p330",
+        "gender": "F",
+        "age": 26.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p333",
+      "label": "p333 \u00b7 Female \u00b7 19y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p333",
+        "gender": "F",
+        "age": 19.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p339",
+      "label": "p339 \u00b7 Female \u00b7 21y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p339",
+        "gender": "F",
+        "age": 21.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p341",
+      "label": "p341 \u00b7 Female \u00b7 26y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p341",
+        "gender": "F",
+        "age": 26.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p361",
+      "label": "p361 \u00b7 Female \u00b7 19y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p361",
+        "gender": "F",
+        "age": 19.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p362",
+      "label": "p362 \u00b7 Female \u00b7 29y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p362",
+        "gender": "F",
+        "age": 29.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p311",
+      "label": "p311 \u00b7 Male \u00b7 21y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p311",
+        "gender": "M",
+        "age": 21.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p334",
+      "label": "p334 \u00b7 Male \u00b7 18y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p334",
+        "gender": "M",
+        "age": 18.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p345",
+      "label": "p345 \u00b7 Male \u00b7 22y \u00b7 American",
+      "metadata": {
+        "speaker_id": "p345",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "American",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p326",
+      "label": "p326 \u00b7 Male \u00b7 26y \u00b7 Australian",
+      "metadata": {
+        "speaker_id": "p326",
+        "gender": "M",
+        "age": 26.0,
+        "accent": "Australian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p374",
+      "label": "p374 \u00b7 Male \u00b7 28y \u00b7 Australian",
+      "metadata": {
+        "speaker_id": "p374",
+        "gender": "M",
+        "age": 28.0,
+        "accent": "Australian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_s5",
+      "label": "s5 \u00b7 Female \u00b7 22y \u00b7 British",
+      "metadata": {
+        "speaker_id": "s5",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "British",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p303",
+      "label": "p303 \u00b7 Female \u00b7 24y \u00b7 Canadian",
+      "metadata": {
+        "speaker_id": "p303",
+        "gender": "F",
+        "age": 24.0,
+        "accent": "Canadian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p312",
+      "label": "p312 \u00b7 Female \u00b7 19y \u00b7 Canadian",
+      "metadata": {
+        "speaker_id": "p312",
+        "gender": "F",
+        "age": 19.0,
+        "accent": "Canadian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p317",
+      "label": "p317 \u00b7 Female \u00b7 23y \u00b7 Canadian",
+      "metadata": {
+        "speaker_id": "p317",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "Canadian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p343",
+      "label": "p343 \u00b7 Female \u00b7 27y \u00b7 Canadian",
+      "metadata": {
+        "speaker_id": "p343",
+        "gender": "F",
+        "age": 27.0,
+        "accent": "Canadian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p302",
+      "label": "p302 \u00b7 Male \u00b7 20y \u00b7 Canadian",
+      "metadata": {
+        "speaker_id": "p302",
+        "gender": "M",
+        "age": 20.0,
+        "accent": "Canadian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p316",
+      "label": "p316 \u00b7 Male \u00b7 20y \u00b7 Canadian",
+      "metadata": {
+        "speaker_id": "p316",
+        "gender": "M",
+        "age": 20.0,
+        "accent": "Canadian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p363",
+      "label": "p363 \u00b7 Male \u00b7 22y \u00b7 Canadian",
+      "metadata": {
+        "speaker_id": "p363",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "Canadian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p225",
+      "label": "p225 \u00b7 Female \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p225",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p228",
+      "label": "p228 \u00b7 Female \u00b7 22y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p228",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p229",
+      "label": "p229 \u00b7 Female \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p229",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p230",
+      "label": "p230 \u00b7 Female \u00b7 22y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p230",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p231",
+      "label": "p231 \u00b7 Female \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p231",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p233",
+      "label": "p233 \u00b7 Female \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p233",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p236",
+      "label": "p236 \u00b7 Female \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p236",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p239",
+      "label": "p239 \u00b7 Female \u00b7 22y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p239",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p240",
+      "label": "p240 \u00b7 Female \u00b7 21y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p240",
+        "gender": "F",
+        "age": 21.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p244",
+      "label": "p244 \u00b7 Female \u00b7 22y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p244",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p250",
+      "label": "p250 \u00b7 Female \u00b7 22y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p250",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p257",
+      "label": "p257 \u00b7 Female \u00b7 24y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p257",
+        "gender": "F",
+        "age": 24.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p267",
+      "label": "p267 \u00b7 Female \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p267",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p268",
+      "label": "p268 \u00b7 Female \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p268",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p269",
+      "label": "p269 \u00b7 Female \u00b7 20y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p269",
+        "gender": "F",
+        "age": 20.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p276",
+      "label": "p276 \u00b7 Female \u00b7 24y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p276",
+        "gender": "F",
+        "age": 24.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p277",
+      "label": "p277 \u00b7 Female \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p277",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p282",
+      "label": "p282 \u00b7 Female \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p282",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p226",
+      "label": "p226 \u00b7 Male \u00b7 22y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p226",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p227",
+      "label": "p227 \u00b7 Male \u00b7 38y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p227",
+        "gender": "M",
+        "age": 38.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p232",
+      "label": "p232 \u00b7 Male \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p232",
+        "gender": "M",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p243",
+      "label": "p243 \u00b7 Male \u00b7 22y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p243",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p254",
+      "label": "p254 \u00b7 Male \u00b7 21y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p254",
+        "gender": "M",
+        "age": 21.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p256",
+      "label": "p256 \u00b7 Male \u00b7 24y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p256",
+        "gender": "M",
+        "age": 24.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p258",
+      "label": "p258 \u00b7 Male \u00b7 22y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p258",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p259",
+      "label": "p259 \u00b7 Male \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p259",
+        "gender": "M",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p270",
+      "label": "p270 \u00b7 Male \u00b7 21y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p270",
+        "gender": "M",
+        "age": 21.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p274",
+      "label": "p274 \u00b7 Male \u00b7 22y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p274",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p278",
+      "label": "p278 \u00b7 Male \u00b7 22y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p278",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p279",
+      "label": "p279 \u00b7 Male \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p279",
+        "gender": "M",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p286",
+      "label": "p286 \u00b7 Male \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p286",
+        "gender": "M",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p287",
+      "label": "p287 \u00b7 Male \u00b7 23y \u00b7 English",
+      "metadata": {
+        "speaker_id": "p287",
+        "gender": "M",
+        "age": 23.0,
+        "accent": "English",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p248",
+      "label": "p248 \u00b7 Female \u00b7 23y \u00b7 Indian",
+      "metadata": {
+        "speaker_id": "p248",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "Indian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p251",
+      "label": "p251 \u00b7 Male \u00b7 26y \u00b7 Indian",
+      "metadata": {
+        "speaker_id": "p251",
+        "gender": "M",
+        "age": 26.0,
+        "accent": "Indian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p376",
+      "label": "p376 \u00b7 Male \u00b7 22y \u00b7 Indian",
+      "metadata": {
+        "speaker_id": "p376",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "Indian",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p266",
+      "label": "p266 \u00b7 Female \u00b7 22y \u00b7 Irish",
+      "metadata": {
+        "speaker_id": "p266",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "Irish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p283",
+      "label": "p283 \u00b7 Female \u00b7 24y \u00b7 Irish",
+      "metadata": {
+        "speaker_id": "p283",
+        "gender": "F",
+        "age": 24.0,
+        "accent": "Irish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p288",
+      "label": "p288 \u00b7 Female \u00b7 22y \u00b7 Irish",
+      "metadata": {
+        "speaker_id": "p288",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "Irish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p295",
+      "label": "p295 \u00b7 Female \u00b7 23y \u00b7 Irish",
+      "metadata": {
+        "speaker_id": "p295",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "Irish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p340",
+      "label": "p340 \u00b7 Female \u00b7 18y \u00b7 Irish",
+      "metadata": {
+        "speaker_id": "p340",
+        "gender": "F",
+        "age": 18.0,
+        "accent": "Irish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p245",
+      "label": "p245 \u00b7 Male \u00b7 25y \u00b7 Irish",
+      "metadata": {
+        "speaker_id": "p245",
+        "gender": "M",
+        "age": 25.0,
+        "accent": "Irish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p298",
+      "label": "p298 \u00b7 Male \u00b7 19y \u00b7 Irish",
+      "metadata": {
+        "speaker_id": "p298",
+        "gender": "M",
+        "age": 19.0,
+        "accent": "Irish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p364",
+      "label": "p364 \u00b7 Male \u00b7 23y \u00b7 Irish",
+      "metadata": {
+        "speaker_id": "p364",
+        "gender": "M",
+        "age": 23.0,
+        "accent": "Irish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p335",
+      "label": "p335 \u00b7 Female \u00b7 25y \u00b7 NewZealand",
+      "metadata": {
+        "speaker_id": "p335",
+        "gender": "F",
+        "age": 25.0,
+        "accent": "NewZealand",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p238",
+      "label": "p238 \u00b7 Female \u00b7 22y \u00b7 NorthernIrish",
+      "metadata": {
+        "speaker_id": "p238",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "NorthernIrish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p261",
+      "label": "p261 \u00b7 Female \u00b7 26y \u00b7 NorthernIrish",
+      "metadata": {
+        "speaker_id": "p261",
+        "gender": "F",
+        "age": 26.0,
+        "accent": "NorthernIrish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p293",
+      "label": "p293 \u00b7 Female \u00b7 22y \u00b7 NorthernIrish",
+      "metadata": {
+        "speaker_id": "p293",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "NorthernIrish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p292",
+      "label": "p292 \u00b7 Male \u00b7 23y \u00b7 NorthernIrish",
+      "metadata": {
+        "speaker_id": "p292",
+        "gender": "M",
+        "age": 23.0,
+        "accent": "NorthernIrish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p304",
+      "label": "p304 \u00b7 Male \u00b7 22y \u00b7 NorthernIrish",
+      "metadata": {
+        "speaker_id": "p304",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "NorthernIrish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p234",
+      "label": "p234 \u00b7 Female \u00b7 22y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p234",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p249",
+      "label": "p249 \u00b7 Female \u00b7 22y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p249",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p262",
+      "label": "p262 \u00b7 Female \u00b7 23y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p262",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p264",
+      "label": "p264 \u00b7 Female \u00b7 23y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p264",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p265",
+      "label": "p265 \u00b7 Female \u00b7 23y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p265",
+        "gender": "F",
+        "age": 23.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p237",
+      "label": "p237 \u00b7 Male \u00b7 22y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p237",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p241",
+      "label": "p241 \u00b7 Male \u00b7 21y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p241",
+        "gender": "M",
+        "age": 21.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p246",
+      "label": "p246 \u00b7 Male \u00b7 22y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p246",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p247",
+      "label": "p247 \u00b7 Male \u00b7 22y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p247",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p252",
+      "label": "p252 \u00b7 Male \u00b7 22y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p252",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p255",
+      "label": "p255 \u00b7 Male \u00b7 19y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p255",
+        "gender": "M",
+        "age": 19.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p260",
+      "label": "p260 \u00b7 Male \u00b7 21y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p260",
+        "gender": "M",
+        "age": 21.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p263",
+      "label": "p263 \u00b7 Male \u00b7 22y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p263",
+        "gender": "M",
+        "age": 22.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p271",
+      "label": "p271 \u00b7 Male \u00b7 19y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p271",
+        "gender": "M",
+        "age": 19.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p272",
+      "label": "p272 \u00b7 Male \u00b7 23y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p272",
+        "gender": "M",
+        "age": 23.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p275",
+      "label": "p275 \u00b7 Male \u00b7 23y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p275",
+        "gender": "M",
+        "age": 23.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p281",
+      "label": "p281 \u00b7 Male \u00b7 29y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p281",
+        "gender": "M",
+        "age": 29.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p284",
+      "label": "p284 \u00b7 Male \u00b7 20y \u00b7 Scottish",
+      "metadata": {
+        "speaker_id": "p284",
+        "gender": "M",
+        "age": 20.0,
+        "accent": "Scottish",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p314",
+      "label": "p314 \u00b7 Female \u00b7 26y \u00b7 SouthAfrican",
+      "metadata": {
+        "speaker_id": "p314",
+        "gender": "F",
+        "age": 26.0,
+        "accent": "SouthAfrican",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p323",
+      "label": "p323 \u00b7 Female \u00b7 19y \u00b7 SouthAfrican",
+      "metadata": {
+        "speaker_id": "p323",
+        "gender": "F",
+        "age": 19.0,
+        "accent": "SouthAfrican",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p336",
+      "label": "p336 \u00b7 Female \u00b7 18y \u00b7 SouthAfrican",
+      "metadata": {
+        "speaker_id": "p336",
+        "gender": "F",
+        "age": 18.0,
+        "accent": "SouthAfrican",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p347",
+      "label": "p347 \u00b7 Male \u00b7 26y \u00b7 SouthAfrican",
+      "metadata": {
+        "speaker_id": "p347",
+        "gender": "M",
+        "age": 26.0,
+        "accent": "SouthAfrican",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p280",
+      "label": "p280 \u00b7 Female \u00b7 25y \u00b7 Unknown",
+      "metadata": {
+        "speaker_id": "p280",
+        "gender": "F",
+        "age": 25.0,
+        "accent": "Unknown",
+        "num_clips": 5
+      }
+    },
+    {
+      "id": "vctk_p253",
+      "label": "p253 \u00b7 Female \u00b7 22y \u00b7 Welsh",
+      "metadata": {
+        "speaker_id": "p253",
+        "gender": "F",
+        "age": 22.0,
+        "accent": "Welsh",
+        "num_clips": 5
+      }
+    }
+  ]
+}

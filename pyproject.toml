@@ -1,0 +1,20 @@
+[project]
+name = "qwen3-tts-voice-pca-explorer"
+version = "0.1.0"
+description = "Interactive PCA explorer for Qwen3-TTS 2048-D speaker embeddings on Apple Silicon"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "torch",
+    "transformers==4.57.3",
+    "datasets",
+    "qwen-tts>=0.1.1",
+    "soundfile",
+    "librosa",
+    "numpy",
+    "scipy",
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "safetensors",
+]
