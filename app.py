@@ -133,6 +133,7 @@ TTS_MODEL_REPO = DEFAULT_TTS_MODEL
 class GenerateRequest(BaseModel):
     embedding_id: str
     targets: List[float]
+    attribute_deltas: Optional[List[float]] = None
     text: str = Field(..., min_length=1, max_length=2000)
     instruct: Optional[str] = None
     language: str = "English"
@@ -144,6 +145,7 @@ class GenerateRequest(BaseModel):
 class ExportEmbeddingRequest(BaseModel):
     embedding_id: str
     targets: List[float]
+    attribute_deltas: Optional[List[float]] = None
     preserve_norm: bool = True
     name: str = "steered_voice"
 
@@ -162,6 +164,8 @@ class AppState:
         self.pca_mean: Optional[np.ndarray] = None
         self.pca_components: Optional[np.ndarray] = None
         self.pca_meta: Dict[str, Any] = {}
+        self.attr_vectors: Optional[np.ndarray] = None  # (M, 2048) unit-norm supervised directions
+        self.attr_meta: List[Dict[str, Any]] = []
 
         self.embeddings: Dict[str, np.ndarray] = {}
         self.icl_prompts: Dict[str, Dict[str, Any]] = {}  # embedding_id -> {"ref_code": Tensor, "ref_text": str}
@@ -180,6 +184,140 @@ def _seed_everything(seed: int, device: str) -> None:
     torch.manual_seed(seed)
     if device == "mps" and hasattr(torch, "mps") and hasattr(torch.mps, "manual_seed"):
         torch.mps.manual_seed(seed)
+
+
+def _project_attributes(emb: np.ndarray) -> List[float]:
+    if state.attr_vectors is None or state.pca_mean is None or len(state.attr_meta) == 0:
+        return []
+    return project_embedding(emb, state.pca_mean, state.attr_vectors).tolist()
+
+
+def _build_supervised_attributes(
+    preset_list: List[Dict[str, Any]],
+    preset_embeddings: Optional[np.ndarray],
+) -> None:
+    """Compute gender, age, and per-accent steering directions from VCTK speaker embeddings.
+
+    Age and accent directions are orthogonalized against the gender direction so shifting
+    an accent or age slider does not accidentally flip the speaker's gender.
+    """
+    state.attr_vectors = None
+    state.attr_meta = []
+    if preset_embeddings is None or len(preset_list) < 10 or state.pca_mean is None or state.pca_components is None:
+        return
+
+    n = min(len(preset_list), preset_embeddings.shape[0])
+    X = preset_embeddings[:n].astype(np.float64)
+    mean = state.pca_mean.astype(np.float64)
+    Xc = X - mean
+    metas = [preset_list[i].get("metadata", {}) for i in range(n)]
+
+    vectors: List[np.ndarray] = []
+    attrs: List[Dict[str, Any]] = []
+
+    def _add_attr(
+        attr_id: str,
+        name: str,
+        low_label: str,
+        high_label: str,
+        vec: np.ndarray,
+        count: int,
+        pos_mask: Optional[np.ndarray] = None,
+        ortho_against: Optional[np.ndarray] = None,
+    ) -> Optional[np.ndarray]:
+        v = vec.astype(np.float64).copy()
+        if ortho_against is not None:
+            v = v - float(np.dot(v, ortho_against)) * ortho_against
+        norm = float(np.linalg.norm(v))
+        if norm < 1e-8:
+            return None
+        v = v / norm
+        projs = Xc @ v
+        std = float(np.std(projs, ddof=1)) if n > 1 else 1.0
+        pos_mean_sigma = None
+        if pos_mask is not None and np.any(pos_mask) and std > 1e-8:
+            pos_mean_sigma = float(np.mean(projs[pos_mask]) / std)
+
+        v32 = v.astype(np.float32)
+        pc_weights = (v32 @ state.pca_components.T).tolist()
+        vectors.append(v32)
+        attrs.append(
+            {
+                "index": len(attrs),
+                "id": attr_id,
+                "name": name,
+                "low_label": low_label,
+                "high_label": high_label,
+                "count": int(count),
+                "std": std,
+                "pos_mean_sigma": pos_mean_sigma,
+                "pc_weights": pc_weights,
+            }
+        )
+        return v
+
+    # 1. Gender (Male <-> Female)
+    f_mask = np.array([m.get("gender") == "F" for m in metas], dtype=bool)
+    m_mask = np.array([m.get("gender") == "M" for m in metas], dtype=bool)
+    v_gender = None
+    if f_mask.sum() >= 3 and m_mask.sum() >= 3:
+        v_gender = _add_attr(
+            attr_id="gender",
+            name="Gender",
+            low_label="Male",
+            high_label="Female",
+            vec=X[f_mask].mean(axis=0) - X[m_mask].mean(axis=0),
+            count=int(f_mask.sum() + m_mask.sum()),
+            pos_mask=f_mask,
+        )
+
+    # 2. Age (Younger <-> Older), orthogonalized against gender
+    age_indices = [i for i, m in enumerate(metas) if m.get("age") is not None]
+    if len(age_indices) >= 10:
+        ages = np.array([float(metas[i]["age"]) for i in age_indices], dtype=np.float64)
+        if np.std(ages) > 1e-6:
+            ages_c = ages - ages.mean()
+            v_age_raw = Xc[age_indices].T @ ages_c
+            _add_attr(
+                attr_id="age",
+                name="Age",
+                low_label="Younger",
+                high_label="Older",
+                vec=v_age_raw,
+                count=len(age_indices),
+                ortho_against=v_gender,
+            )
+
+    # 3. Accents (all accents with >= 3 speakers, sorted by speaker count desc), orthogonalized against gender
+    accent_counts: Dict[str, int] = {}
+    for m in metas:
+        acc = m.get("accent")
+        if acc and acc.lower() != "unknown":
+            accent_counts[acc] = accent_counts.get(acc, 0) + 1
+
+    for acc, cnt in sorted(accent_counts.items(), key=lambda kv: (-kv[1], kv[0])):
+        if cnt < 3:
+            continue
+        pos_mask = np.array([m.get("accent") == acc for m in metas], dtype=bool)
+        neg_mask = ~pos_mask
+        if neg_mask.sum() < 3:
+            continue
+        nice_name = acc.replace("NorthernIrish", "Northern Irish").replace("SouthAfrican", "South African")
+        _add_attr(
+            attr_id=f"accent_{acc.lower()}",
+            name=f"{nice_name} Accent",
+            low_label=f"Non-{nice_name}",
+            high_label=nice_name,
+            vec=X[pos_mask].mean(axis=0) - X[neg_mask].mean(axis=0),
+            count=cnt,
+            pos_mask=pos_mask,
+            ortho_against=v_gender,
+        )
+
+    if vectors:
+        state.attr_vectors = np.stack(vectors, axis=0).astype(np.float32)
+        state.attr_meta = attrs
+        print(f"[startup] Computed {len(attrs)} supervised attribute steering vectors (gender-orthogonalized).")
 
 
 def _load_pca_artifacts() -> None:
@@ -232,6 +370,11 @@ def _load_pca_artifacts() -> None:
     with open(PCA_META_PATH, "r", encoding="utf-8") as f:
         state.pca_meta = json.load(f)
 
+    # Build supervised attribute steering vectors (Gender, Age, Accents) from VCTK speakers
+    preset_list = state.pca_meta.get("presets", [])
+    preset_embeddings = npz["preset_embeddings"].astype(np.float32) if "preset_embeddings" in npz else None
+    _build_supervised_attributes(preset_list, preset_embeddings)
+
     # Register PCA Mean Voice first
     state.embeddings["pca_mean"] = state.pca_mean.copy()
     mean_proj = project_embedding(state.pca_mean, state.pca_mean, state.pca_components).tolist()
@@ -241,12 +384,9 @@ def _load_pca_artifacts() -> None:
             "label": "PCA Mean Voice (Centroid)",
             "metadata": {"source": f"Mean of {state.pca_meta.get('num_speakers', '?')} VCTK speakers"},
             "projections": mean_proj,
+            "attr_projections": _project_attributes(state.pca_mean),
         }
     ]
-
-    # Register preset VCTK speakers saved in pca_model.npz
-    preset_list = state.pca_meta.get("presets", [])
-    preset_embeddings = npz["preset_embeddings"].astype(np.float32) if "preset_embeddings" in npz else None
 
     if preset_embeddings is not None:
         for idx, pmeta in enumerate(preset_list):
@@ -262,6 +402,7 @@ def _load_pca_artifacts() -> None:
                     "label": pmeta["label"],
                     "metadata": pmeta.get("metadata", {}),
                     "projections": proj,
+                    "attr_projections": _project_attributes(emb),
                 }
             )
 
@@ -325,6 +466,7 @@ def _load_tts_model_by_id(repo_id: str) -> None:
                             "label": f"CustomVoice · {spk_name.replace('_', ' ').title()}",
                             "metadata": {"source": f"Built-in {TTS_MODEL_REPO} speaker (id={tok_id})"},
                             "projections": proj,
+                            "attr_projections": _project_attributes(vec),
                         }
                     )
         if builtin_presets:
@@ -375,6 +517,7 @@ def _build_meta_payload() -> Dict[str, Any]:
         "num_clips": state.pca_meta.get("num_clips", 0),
         "dataset": state.pca_meta.get("dataset", ""),
         "components": state.pca_meta.get("components", []),
+        "attributes": state.attr_meta,
         "presets": state.presets_info,
         "supported_languages": state.supported_languages,
     }
@@ -475,6 +618,7 @@ async def encode_audio(
         "embedding_id": emb_id,
         "label": f"Custom: {filename}{chunk_tag}{icl_tag}",
         "projections": projections,
+        "attr_projections": _project_attributes(emb),
         "duration_sec": duration_sec,
         "full_duration_sec": full_duration_sec,
         "clip_start_sec": s_sec,
@@ -573,6 +717,8 @@ async def generate_speech(req: GenerateRequest):
         components=state.pca_components,
         targets=req.targets,
         preserve_norm=req.preserve_norm,
+        attribute_vectors=state.attr_vectors,
+        attribute_deltas=req.attribute_deltas,
     )
 
     seed = req.seed if req.seed is not None else random.randint(0, 2**31 - 1)
@@ -647,6 +793,7 @@ async def import_embedding(file: UploadFile = File(...)):
         "embedding_id": emb_id,
         "label": f"Imported: {stem}",
         "projections": projections,
+        "attr_projections": _project_attributes(emb),
         "norm": float(np.linalg.norm(emb)),
     }
 
@@ -666,6 +813,8 @@ async def export_embedding(req: ExportEmbeddingRequest):
         components=state.pca_components,
         targets=req.targets,
         preserve_norm=req.preserve_norm,
+        attribute_vectors=state.attr_vectors,
+        attribute_deltas=req.attribute_deltas,
     )
 
     tensor = torch.from_numpy(steered.astype(np.float32))

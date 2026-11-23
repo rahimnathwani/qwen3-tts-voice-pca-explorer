@@ -488,6 +488,49 @@
       .chunk-controls { grid-template-columns: 1fr 1fr; }
     }
 
+    /* Tabs for PCA vs Attribute Sliders */
+    .tab-bar {
+      display: inline-flex;
+      gap: 4px;
+      padding: 3px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      padding: 5px 11px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .tab-btn:hover { color: var(--text); }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .tab-count {
+      display: inline-block;
+      margin-left: 5px;
+      padding: 0 5px;
+      border-radius: 999px;
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
     /* PCA Sliders */
     .sliders-toolbar {
       display: flex;
@@ -929,23 +972,40 @@
 
       <section class="panel">
         <div class="panel-header">
-          <h2 class="panel-title">2. Principal Component Sliders (PC1–PC10)</h2>
+          <div class="tab-bar" role="tablist">
+            <button class="tab-btn active" id="tabBtnPca" type="button">PCA Axes (PC1–PC10)</button>
+            <button class="tab-btn" id="tabBtnAttr" type="button">Attribute Sliders <span class="tab-count" id="attrActiveCount" style="display:none;">0</span></button>
+          </div>
           <label class="toggle-label" title="Rescale steered vector back to original L2 norm to reduce out-of-distribution distortion">
             <input type="checkbox" id="preserveNormToggle" checked />
             Preserve Norm
           </label>
         </div>
 
-        <div class="sliders-toolbar">
-          <div class="btn-row">
-            <button class="btn btn-sm" id="resetBaseBtn" type="button">Reset to Base</button>
-            <button class="btn btn-sm" id="zeroAllBtn" type="button">Zero All (PCA Mean)</button>
-            <button class="btn btn-sm" id="randomizeBtn" type="button">Randomize (±1.5σ)</button>
+        <div class="tab-pane active" id="tabPanePca">
+          <div class="sliders-toolbar">
+            <div class="btn-row">
+              <button class="btn btn-sm" id="resetBaseBtn" type="button">Reset to Base</button>
+              <button class="btn btn-sm" id="zeroAllBtn" type="button">Zero All (PCA Mean)</button>
+              <button class="btn btn-sm" id="randomizeBtn" type="button">Randomize (±1.5σ)</button>
+            </div>
+            <button class="btn btn-sm" id="exportCurrentBtn" type="button">Export Current (.safetensors)</button>
           </div>
-          <button class="btn btn-sm" id="exportCurrentBtn" type="button">Export Current (.safetensors)</button>
+
+          <div class="sliders-list" id="slidersContainer"></div>
         </div>
 
-        <div class="sliders-list" id="slidersContainer"></div>
+        <div class="tab-pane" id="tabPaneAttr">
+          <div class="sliders-toolbar">
+            <div class="btn-row">
+              <button class="btn btn-sm" id="resetAttrBtn" type="button">Reset Attributes (0)</button>
+              <span style="font-size: 11.5px; color: var(--text-muted);">Accent &amp; age directions are gender-orthogonalized</span>
+            </div>
+            <button class="btn btn-sm" id="exportCurrentBtn2" type="button">Export Current (.safetensors)</button>
+          </div>
+
+          <div class="sliders-list" id="attrSlidersContainer"></div>
+        </div>
       </section>
     </div>
 
@@ -1073,7 +1133,8 @@
       meta: null,
       voices: {},          // id -> { id, label, metadata, projections }
       currentVoiceId: null,
-      targets: [],         // current slider values (length K)
+      targets: [],         // current PCA slider values (length K)
+      attrDeltas: [],      // current attribute steering deltas (length M, default 0)
       history: [],         // generated clips
       isGenerating: false,
       mediaRecorder: null,
@@ -1305,6 +1366,7 @@
         }
 
         renderSliders();
+        renderAttrSliders();
         initPcaMap(data);
         applyModelCapabilities(data);
         refreshVoiceDropdown(data, false);
@@ -1352,6 +1414,115 @@
         genBtn.disabled = false;
       }
     });
+
+    // Tab switching (PCA Axes vs Attribute Sliders)
+    function switchSliderTab(tab) {
+      const isPca = tab === "pca";
+      $("tabBtnPca").classList.toggle("active", isPca);
+      $("tabBtnAttr").classList.toggle("active", !isPca);
+      $("tabPanePca").classList.toggle("active", isPca);
+      $("tabPaneAttr").classList.toggle("active", !isPca);
+    }
+    $("tabBtnPca").addEventListener("click", () => switchSliderTab("pca"));
+    $("tabBtnAttr").addEventListener("click", () => switchSliderTab("attr"));
+
+    function renderAttrSliders() {
+      const container = $("attrSlidersContainer");
+      const attrs = state.meta?.attributes || [];
+      state.attrDeltas = attrs.map(() => 0);
+      container.innerHTML = "";
+      if (attrs.length === 0) {
+        container.innerHTML = `<div class="history-empty">Run <code>build_pca.py</code> to compute supervised Gender, Age, and Accent sliders from VCTK.</div>`;
+        return;
+      }
+
+      attrs.forEach((attr, j) => {
+        const bound = Math.max(attr.std * 3.0, 1e-3);
+        const step = bound / 120;
+        const row = document.createElement("div");
+        row.className = "pc-row";
+        row.id = `attr-row-${j}`;
+
+        row.innerHTML = `
+          <div class="pc-top">
+            <div class="pc-title-group">
+              <span class="pc-name">${attr.name}</span>
+              <span class="pc-var">n=${attr.count}</span>
+              <span class="pc-hint" id="attr-base-${j}">Base: 0.00σ</span>
+            </div>
+            <div class="pc-val" id="attr-val-${j}">+0.00σ</div>
+          </div>
+          <div class="slider-wrap">
+            <div class="slider-zero-tick"></div>
+            <input
+              type="range"
+              class="pc-slider"
+              id="attr-slider-${j}"
+              min="${(-bound).toFixed(5)}"
+              max="${bound.toFixed(5)}"
+              step="${step.toFixed(5)}"
+              value="0"
+            />
+          </div>
+          <div class="pc-legend">
+            <span>← ${attr.low_label} (-3σ)</span>
+            <span>0 (no shift)</span>
+            <span>${attr.high_label} (+3σ) →</span>
+          </div>
+        `;
+        container.appendChild(row);
+
+        const slider = $(`attr-slider-${j}`);
+        slider.addEventListener("input", () => {
+          state.attrDeltas[j] = parseFloat(slider.value);
+          updateAttrDisplay(j);
+          drawPcaMap();
+        });
+      });
+      updateAttrActiveBadge();
+    }
+
+    function updateAttrActiveBadge() {
+      const attrs = state.meta?.attributes || [];
+      let active = 0;
+      attrs.forEach((attr, j) => {
+        if (Math.abs((state.attrDeltas[j] || 0) / Math.max(attr.std, 1e-6)) >= 0.05) active++;
+      });
+      const badge = $("attrActiveCount");
+      badge.textContent = String(active);
+      badge.style.display = active > 0 ? "inline-block" : "none";
+    }
+
+    function updateAttrDisplay(j) {
+      const attr = state.meta.attributes[j];
+      const delta = state.attrDeltas[j] || 0;
+      const sigma = delta / Math.max(attr.std, 1e-6);
+      const valEl = $(`attr-val-${j}`);
+      const sign = sigma >= 0 ? "+" : "";
+      valEl.textContent = `${sign}${sigma.toFixed(2)}σ`;
+      valEl.classList.remove("delta-pos", "delta-neg");
+      const row = $(`attr-row-${j}`);
+      if (Math.abs(sigma) >= 0.05) {
+        row.classList.add("modified");
+        valEl.classList.add(sigma > 0 ? "delta-pos" : "delta-neg");
+      } else {
+        row.classList.remove("modified");
+      }
+      updateAttrActiveBadge();
+    }
+
+    function resetAttrSliders() {
+      const attrs = state.meta?.attributes || [];
+      attrs.forEach((_, j) => {
+        state.attrDeltas[j] = 0;
+        const el = $(`attr-slider-${j}`);
+        if (el) el.value = 0;
+        updateAttrDisplay(j);
+      });
+      drawPcaMap();
+    }
+
+    $("resetAttrBtn").addEventListener("click", resetAttrSliders);
 
     function renderSliders() {
       const container = $("slidersContainer");
@@ -1443,6 +1614,22 @@
         tick.title = `Base voice: ${baseVal.toFixed(3)} (${(baseVal / pc.std).toFixed(2)}σ)`;
 
         updateSliderDisplay(i);
+      });
+
+      // Reset attribute deltas & display base voice's natural score on each attribute
+      const attrs = state.meta.attributes || [];
+      const attrProjs = voice.attr_projections || [];
+      attrs.forEach((attr, j) => {
+        state.attrDeltas[j] = 0;
+        const sl = $(`attr-slider-${j}`);
+        if (sl) sl.value = 0;
+        const baseScore = attrProjs[j] !== undefined ? attrProjs[j] / Math.max(attr.std, 1e-6) : 0;
+        const baseEl = $(`attr-base-${j}`);
+        if (baseEl) {
+          const sign = baseScore >= 0 ? "+" : "";
+          baseEl.textContent = `Base: ${sign}${baseScore.toFixed(2)}σ`;
+        }
+        updateAttrDisplay(j);
       });
 
       const meta = voice.metadata || {};
@@ -1558,6 +1745,7 @@
           id: data.embedding_id,
           label: data.label,
           projections: data.projections,
+          attr_projections: data.attr_projections || [],
           has_icl: Boolean(data.has_icl),
           metadata: { source: `${filename} (${data.clip_start_sec.toFixed(1)}s–${data.clip_end_sec.toFixed(1)}s, ${data.duration_sec.toFixed(1)}s${data.has_icl ? ", ICL enabled" : ""})` },
         };
@@ -1678,6 +1866,7 @@
           id: data.embedding_id,
           label: data.label,
           projections: data.projections,
+          attr_projections: data.attr_projections || [],
           has_icl: false,
           metadata: { source: `${file.name} (norm=${data.norm.toFixed(2)})` },
         };
@@ -1868,13 +2057,23 @@
       }
       ctx.globalAlpha = 1.0;
 
-      // Draw base voice marker + steered vector + steered crosshair
+      // Draw base voice marker + steered vector + steered crosshair (including attribute shifts)
       const voice = state.voices[state.currentVoiceId];
       if (voice) {
         const bx = toX(voice.projections[state.mapAxisX]);
         const by = toY(voice.projections[state.mapAxisY]);
-        const sx = toX(state.targets[state.mapAxisX] ?? 0);
-        const sy = toY(state.targets[state.mapAxisY] ?? 0);
+        let effX = state.targets[state.mapAxisX] ?? 0;
+        let effY = state.targets[state.mapAxisY] ?? 0;
+        const attrs = state.meta.attributes || [];
+        attrs.forEach((attr, j) => {
+          const d = state.attrDeltas[j] || 0;
+          if (Math.abs(d) > 1e-7 && attr.pc_weights) {
+            effX += d * (attr.pc_weights[state.mapAxisX] || 0);
+            effY += d * (attr.pc_weights[state.mapAxisY] || 0);
+          }
+        });
+        const sx = toX(Math.max(-bX, Math.min(bX, effX)));
+        const sy = toY(Math.max(-bY, Math.min(bY, effY)));
 
         // Dashed steering vector
         if (Math.hypot(sx - bx, sy - by) > 2) {
@@ -1935,7 +2134,7 @@
         $(`pc-slider-${i}`).value = 0;
         updateSliderDisplay(i);
       });
-      drawPcaMap();
+      resetAttrSliders();
     });
 
     $("randomizeBtn").addEventListener("click", () => {
@@ -1945,7 +2144,7 @@
         $(`pc-slider-${i}`).value = val;
         updateSliderDisplay(i);
       });
-      drawPcaMap();
+      resetAttrSliders();
     });
 
     // Quick instruct chips
@@ -1956,7 +2155,7 @@
     });
 
     // Export safetensors helper
-    async function exportSafetensors(embeddingId, targets, preserveNorm, name) {
+    async function exportSafetensors(embeddingId, targets, attributeDeltas, preserveNorm, name) {
       showError(null);
       try {
         const res = await fetch("/api/export-embedding", {
@@ -1965,6 +2164,7 @@
           body: JSON.stringify({
             embedding_id: embeddingId,
             targets,
+            attribute_deltas: attributeDeltas,
             preserve_norm: preserveNorm,
             name,
           }),
@@ -1987,16 +2187,19 @@
       }
     }
 
-    $("exportCurrentBtn").addEventListener("click", () => {
+    function exportCurrentHandler() {
       const voice = state.voices[state.currentVoiceId];
       if (!voice) return;
       exportSafetensors(
         state.currentVoiceId,
         state.targets.slice(),
+        state.attrDeltas.slice(),
         $("preserveNormToggle").checked,
         `steered_${voice.id}`
       );
-    });
+    }
+    $("exportCurrentBtn").addEventListener("click", exportCurrentHandler);
+    $("exportCurrentBtn2").addEventListener("click", exportCurrentHandler);
 
     // Generate speech
     $("generateBtn").addEventListener("click", async () => {
@@ -2026,6 +2229,7 @@
       const preserveNorm = $("preserveNormToggle").checked;
       const useIcl = $("useIclToggle").checked;
       const targetsSnapshot = state.targets.slice();
+      const attrDeltasSnapshot = state.attrDeltas.slice();
       const voice = state.voices[state.currentVoiceId];
 
       try {
@@ -2035,6 +2239,7 @@
           body: JSON.stringify({
             embedding_id: state.currentVoiceId,
             targets: targetsSnapshot,
+            attribute_deltas: attrDeltasSnapshot,
             text,
             instruct: instruct || null,
             language,
@@ -2053,13 +2258,19 @@
         const genTime = res.headers.get("X-Generation-Time") || ((performance.now() - startTs) / 1000).toFixed(2);
         const audioUrl = URL.createObjectURL(wavBlob);
 
-        // Compute compact slider deltas relative to base voice
+        // Compute compact slider deltas relative to base voice (PCA + Attributes)
         const deltas = [];
         state.meta.components.forEach((pc, i) => {
           const baseVal = voice.projections[i];
           const diffSigma = (targetsSnapshot[i] - baseVal) / Math.max(pc.std, 1e-6);
           if (Math.abs(diffSigma) >= 0.08) {
-            deltas.push({ pc: i + 1, diffSigma });
+            deltas.push({ label: `PC${i + 1}`, diffSigma });
+          }
+        });
+        (state.meta.attributes || []).forEach((attr, j) => {
+          const diffSigma = (attrDeltasSnapshot[j] || 0) / Math.max(attr.std, 1e-6);
+          if (Math.abs(diffSigma) >= 0.08) {
+            deltas.push({ label: attr.name.replace(" Accent", ""), diffSigma });
           }
         });
 
@@ -2073,6 +2284,7 @@
           seed,
           preserveNorm,
           targets: targetsSnapshot,
+          attrDeltas: attrDeltasSnapshot,
           deltas,
           genTime,
           audioUrl,
@@ -2111,7 +2323,7 @@
               .map((d) => {
                 const cls = d.diffSigma >= 0 ? "pos" : "neg";
                 const sign = d.diffSigma >= 0 ? "+" : "";
-                return `<span class="delta-tag ${cls}">PC${d.pc} ${sign}${d.diffSigma.toFixed(2)}σ</span>`;
+                return `<span class="delta-tag ${cls}">${d.label} ${sign}${d.diffSigma.toFixed(2)}σ</span>`;
               })
               .join("")
           : `<span class="delta-tag">Base voice (no shift)</span>`;
@@ -2139,7 +2351,7 @@
       container.querySelectorAll("[data-export-idx]").forEach((btn) => {
         btn.addEventListener("click", () => {
           const item = state.history[parseInt(btn.dataset.exportIdx, 10)];
-          exportSafetensors(item.voiceId, item.targets, item.preserveNorm, `clip_${item.id}`);
+          exportSafetensors(item.voiceId, item.targets, item.attrDeltas || [], item.preserveNorm, `clip_${item.id}`);
         });
       });
 
@@ -2152,6 +2364,12 @@
               state.targets[i] = v;
               $(`pc-slider-${i}`).value = v;
               updateSliderDisplay(i);
+            });
+            (item.attrDeltas || []).forEach((d, j) => {
+              state.attrDeltas[j] = d;
+              const sl = $(`attr-slider-${j}`);
+              if (sl) sl.value = d;
+              updateAttrDisplay(j);
             });
             $("preserveNormToggle").checked = item.preserveNorm;
             drawPcaMap();

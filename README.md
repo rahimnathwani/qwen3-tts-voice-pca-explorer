@@ -10,7 +10,7 @@ Qwen3-TTS represents speaker identity as a 2048-dimensional x-vector extracted b
 
 By running PCA across 109 multi-speaker VCTK voices (`545` utterances), we uncover an orthogonal, interpretable coordinate system inside the 2048-D speaker space — where **PC1 alone captures 29.0% of variance and correlates with gender at `r = -0.95`**, and subsequent axes capture accent, age, and timbral qualities. This tool lets you:
 
-- **Explore & steer visually** on an interactive **2D Voice Space Map** (click/drag across any pair of PCs, colored by gender or accent) and 10 calibrated `±2.5σ` sliders with norm preservation.
+- **Explore & steer visually** on an interactive **2D Voice Space Map** (click/drag across any pair of PCs, colored by gender or accent), **10 unsupervised PCA sliders (PC1–PC10)**, and **10 supervised Attribute Sliders** (*Gender*, *Age*, and 8 gender-orthogonalized *Accent* sliders: English, American, Scottish, Irish, Canadian, Northern Irish, South African, Indian).
 - **Start from any voice** — the PCA mean, 109 VCTK speakers (searchable & grouped), CustomVoice's 9 built-in speakers, an uploaded `.wav`/`.mp3` chunk, a live mic recording, or a previously saved `.safetensors` embedding.
 - **Compare models live in the UI** — switch between `Base` (high-fidelity ICL cloning + PCA steering), `CustomVoice` (style `instruct` + 9 built-in voices + PCA steering), and `VoiceDesign`.
 - **Export & re-import steered embeddings** as `.safetensors` (`speaker_embedding`, shape `(2048,)`, `float32`) to reuse in downstream TTS pipelines.

@@ -89,14 +89,17 @@ def steer_embedding(
     components: np.ndarray,
     targets: Sequence[float],
     preserve_norm: bool = True,
+    attribute_vectors: np.ndarray | None = None,
+    attribute_deltas: Sequence[float] | None = None,
 ) -> np.ndarray:
-    """Steer a 2048-D speaker embedding to target coordinates along PC1..PCK in float32.
+    """Steer a 2048-D speaker embedding to target PCA coordinates + optional attribute deltas in float32.
 
-    For each axis i:
-        x = x + (t[i] - (x - mean) @ components[i]) * components[i]
-
-    If preserve_norm is True, rescales the steered vector back to the original L2 norm
-    to reduce out-of-distribution distortion when pushing multiple sliders.
+    1. For each PCA axis i:
+         x = x + (t[i] - (x - mean) @ components[i]) * components[i]
+    2. For each supervised attribute j (e.g. Gender, Age, Indian, Scottish):
+         x = x + delta[j] * attribute_vectors[j]
+    3. If preserve_norm is True, rescales the steered vector back to the original L2 norm
+       to reduce out-of-distribution distortion when pushing multiple sliders.
     """
     x = np.asarray(base_embedding, dtype=np.float32).reshape(-1).copy()
     m = np.asarray(mean, dtype=np.float32).reshape(-1)
@@ -110,6 +113,15 @@ def steer_embedding(
         c = comps[i]
         current_proj = float(np.dot(x - m, c))
         x = x + (float(target_val) - current_proj) * c
+
+    if attribute_vectors is not None and attribute_deltas is not None:
+        attrs = np.asarray(attribute_vectors, dtype=np.float32)
+        for j, delta_val in enumerate(attribute_deltas):
+            if j >= attrs.shape[0]:
+                break
+            d = float(delta_val)
+            if abs(d) > 1e-7:
+                x = x + d * attrs[j]
 
     if preserve_norm and orig_norm > 1e-8:
         new_norm = float(np.linalg.norm(x))
