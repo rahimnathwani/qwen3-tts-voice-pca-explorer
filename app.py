@@ -411,8 +411,10 @@ def _load_tts_model_by_id(repo_id: str) -> None:
     """Unload any existing TTS model and load `repo_id` onto MPS/CPU."""
     global TTS_MODEL_REPO
 
-    # Remove any old built-in CustomVoice presets before swapping
-    state.presets_info = [p for p in state.presets_info if not p["id"].startswith("builtin_")]
+    # Remove any old model-specific presets (built-in CustomVoice or Pure VoiceDesign) before swapping
+    state.presets_info = [
+        p for p in state.presets_info if not p["id"].startswith("builtin_") and p["id"] != "none"
+    ]
     for k in [k for k in list(state.embeddings.keys()) if k.startswith("builtin_")]:
         del state.embeddings[k]
 
@@ -472,6 +474,21 @@ def _load_tts_model_by_id(repo_id: str) -> None:
         if builtin_presets:
             state.presets_info = state.presets_info[:1] + builtin_presets + state.presets_info[1:]
             print(f"[model] Added {len(builtin_presets)} built-in CustomVoice speakers to presets.")
+
+    # If VoiceDesign is active, make Pure VoiceDesign (no speaker embedding) the first/default option
+    if state.tts_model_type == "voice_design":
+        num_pcs = state.pca_components.shape[0] if state.pca_components is not None else 10
+        num_attrs = len(state.attr_meta)
+        state.presets_info.insert(
+            0,
+            {
+                "id": "none",
+                "label": "No Speaker Embedding (Pure VoiceDesign)",
+                "metadata": {"source": "Voice designed purely from Style Instruction (speaker_embed=None)"},
+                "projections": [0.0] * num_pcs,
+                "attr_projections": [0.0] * num_attrs,
+            },
+        )
 
     print(f"[model] TTS model ready: {TTS_MODEL_REPO} (type={state.tts_model_type})")
 
@@ -628,7 +645,7 @@ async def encode_audio(
 
 
 def _run_tts_generation(
-    steered_f32: np.ndarray,
+    steered_f32: Optional[np.ndarray],
     text: str,
     instruct: Optional[str],
     language: str,
@@ -641,43 +658,47 @@ def _run_tts_generation(
     t0 = time.perf_counter()
     _seed_everything(seed, state.device)
 
-    # Cast steered float32 embedding to bfloat16 (or model dtype) on target device
-    xvec = torch.from_numpy(steered_f32).to(device=cv.device, dtype=state.dtype)
-
     ids = cv._tokenize_texts([cv._build_assistant_text(text)])
     instruct_clean = instruct.strip() if instruct else ""
     # Base model does not use instruct_ids; CustomVoice/VoiceDesign do
     use_instruct = bool(instruct_clean) and state.tts_model_type != "base"
     told = [cv._tokenize_texts([cv._build_instruct_text(instruct_clean)])[0]] if use_instruct else None
 
-    if icl_prompt is not None:
-        ref_code = icl_prompt["ref_code"]
-        ref_ids = [cv._tokenize_texts([cv._build_ref_text(icl_prompt["ref_text"])])[0]]
-        voice = {
-            "ref_code": [ref_code],
-            "ref_spk_embedding": [xvec],
-            "x_vector_only_mode": [False],
-            "icl_mode": [True],
-        }
-        gen_mode = "icl+xvec"
+    ref_code = None
+    ref_ids = None
+    if steered_f32 is None:
+        # Pure VoiceDesign: omit voice_clone_prompt completely so speaker_embed is None
+        voice = None
+        gen_mode = "voice_design_pure"
     else:
-        ref_code = None
-        ref_ids = None
-        voice = {
-            "ref_code": [None],
-            "ref_spk_embedding": [xvec],
-            "x_vector_only_mode": [True],
-            "icl_mode": [False],
-        }
-        gen_mode = "xvec_only"
+        xvec = torch.from_numpy(steered_f32).to(device=cv.device, dtype=state.dtype)
+        if icl_prompt is not None:
+            ref_code = icl_prompt["ref_code"]
+            ref_ids = [cv._tokenize_texts([cv._build_ref_text(icl_prompt["ref_text"])])[0]]
+            voice = {
+                "ref_code": [ref_code],
+                "ref_spk_embedding": [xvec],
+                "x_vector_only_mode": [False],
+                "icl_mode": [True],
+            }
+            gen_mode = "icl+xvec"
+        else:
+            voice = {
+                "ref_code": [None],
+                "ref_spk_embedding": [xvec],
+                "x_vector_only_mode": [True],
+                "icl_mode": [False],
+            }
+            gen_mode = "xvec_only"
 
     gen_call_kwargs: Dict[str, Any] = dict(
         input_ids=ids,
-        voice_clone_prompt=voice,
         languages=[language],
         non_streaming_mode=True,
         **cv._merge_generate_kwargs(temperature=0.7, subtalker_temperature=0.7),
     )
+    if voice is not None:
+        gen_call_kwargs["voice_clone_prompt"] = voice
     if told is not None:
         gen_call_kwargs["instruct_ids"] = told
     if ref_ids is not None:
@@ -707,27 +728,36 @@ async def generate_speech(req: GenerateRequest):
     if state.tts_model is None or state.pca_mean is None or state.pca_components is None:
         raise HTTPException(status_code=503, detail="Models not initialized")
 
-    base_emb = state.embeddings.get(req.embedding_id)
-    if base_emb is None:
-        raise HTTPException(status_code=404, detail=f"Unknown embedding_id: {req.embedding_id}")
+    if req.embedding_id == "none":
+        if state.tts_model_type != "voice_design":
+            raise HTTPException(
+                status_code=400,
+                detail="No Speaker Embedding mode is only supported on the VoiceDesign model.",
+            )
+        steered = None
+        icl_prompt = None
+    else:
+        base_emb = state.embeddings.get(req.embedding_id)
+        if base_emb is None:
+            raise HTTPException(status_code=404, detail=f"Unknown embedding_id: {req.embedding_id}")
 
-    steered = steer_embedding(
-        base_embedding=base_emb,
-        mean=state.pca_mean,
-        components=state.pca_components,
-        targets=req.targets,
-        preserve_norm=req.preserve_norm,
-        attribute_vectors=state.attr_vectors,
-        attribute_deltas=req.attribute_deltas,
-    )
+        steered = steer_embedding(
+            base_embedding=base_emb,
+            mean=state.pca_mean,
+            components=state.pca_components,
+            targets=req.targets,
+            preserve_norm=req.preserve_norm,
+            attribute_vectors=state.attr_vectors,
+            attribute_deltas=req.attribute_deltas,
+        )
+        # Only apply ICL mode when the Base model is active
+        icl_prompt = (
+            state.icl_prompts.get(req.embedding_id)
+            if (req.use_icl and state.tts_model_type == "base")
+            else None
+        )
 
     seed = req.seed if req.seed is not None else random.randint(0, 2**31 - 1)
-    # Only apply ICL mode when the Base model is active
-    icl_prompt = (
-        state.icl_prompts.get(req.embedding_id)
-        if (req.use_icl and state.tts_model_type == "base")
-        else None
-    )
 
     async with state.lock:
         try:
@@ -802,6 +832,12 @@ async def import_embedding(file: UploadFile = File(...)):
 async def export_embedding(req: ExportEmbeddingRequest):
     if state.pca_mean is None or state.pca_components is None:
         raise HTTPException(status_code=503, detail="PCA model not loaded")
+
+    if req.embedding_id == "none":
+        raise HTTPException(
+            status_code=400,
+            detail="Pure VoiceDesign has no speaker embedding to export. Select a base voice first.",
+        )
 
     base_emb = state.embeddings.get(req.embedding_id)
     if base_emb is None:

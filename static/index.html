@@ -1039,18 +1039,22 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="slidersPanel">
         <div class="panel-header">
           <div class="tab-bar" role="tablist">
             <button class="tab-btn active" id="tabBtnPca" type="button">PCA Axes (PC1–PC10) <span class="tab-count" id="pcaActiveCount" style="display:none;">0</span></button>
             <button class="tab-btn" id="tabBtnAttr" type="button">Attribute Sliders <span class="tab-count" id="attrActiveCount" style="display:none;">0</span></button>
           </div>
-          <label class="toggle-label" title="Rescale steered vector back to original L2 norm to reduce out-of-distribution distortion">
+          <label class="toggle-label" id="preserveNormLabel" title="Rescale steered vector back to original L2 norm to reduce out-of-distribution distortion">
             <input type="checkbox" id="preserveNormToggle" checked />
             Preserve Norm
           </label>
         </div>
+        <div class="disabled-note" id="slidersDisabledNote" style="margin-top:0; margin-bottom:10px;">
+          <span>Sliders are disabled in Pure VoiceDesign mode (no speaker embedding is sent). Select any voice above to steer a 2048-D embedding.</span>
+        </div>
 
+        <div id="slidersPanelBody">
         <div class="tab-pane active" id="tabPanePca">
           <div class="sliders-toolbar">
             <div class="btn-row">
@@ -1075,16 +1079,18 @@
 
           <div class="sliders-list" id="attrSlidersContainer"></div>
         </div>
+        </div>
       </section>
     </div>
 
     <!-- Right Column: 2D Voice Map + Synthesis + Comparison History -->
     <div class="column">
-      <section class="panel">
+      <section class="panel" id="pcaMapPanel">
         <div class="panel-header">
           <h2 class="panel-title">2D Voice Space Map</h2>
-          <span style="font-size: 11.5px; color: var(--text-muted);">Click or drag to steer live</span>
+          <span id="pcaMapSubtitle" style="font-size: 11.5px; color: var(--text-muted);">Click or drag to steer live</span>
         </div>
+        <div id="pcaMapBody">
         <div class="pca-map-toolbar">
           <div class="btn-row">
             <span style="font-size:12px; color:var(--text-muted);">X:</span>
@@ -1110,6 +1116,7 @@
             <span><span class="legend-dot" style="background:var(--amber);"></span>Base</span>
             <span><span class="legend-dot" style="background:var(--teal);"></span>Steered</span>
           </div>
+        </div>
         </div>
       </section>
 
@@ -1158,14 +1165,15 @@
           </div>
 
           <div>
-            <label class="field-label">Sampling Seed</label>
+            <label class="field-label" for="seedInput">Sampling Seed</label>
             <div class="seed-row">
-              <label class="toggle-label">
+              <label class="toggle-label" title="When checked, reuses the exact seed below on every run. When unchecked, picks a fresh random seed each run.">
                 <input type="checkbox" id="fixedSeedToggle" checked />
                 Fixed
               </label>
               <input type="number" id="seedInput" value="42" min="0" max="2147483647" />
             </div>
+            <div id="seedHint" style="margin-top: 4px; font-size: 11px; color: var(--text-dim);">Fixed seed — isolates slider changes from random sampling.</div>
           </div>
         </div>
 
@@ -1256,10 +1264,37 @@
       badge.style.display = active > 0 ? "inline-block" : "none";
     }
 
+    function updateSeedControlState() {
+      const fixed = $("fixedSeedToggle").checked;
+      const input = $("seedInput");
+      input.disabled = !fixed;
+      input.classList.toggle("control-disabled", !fixed);
+      $("seedHint").textContent = fixed
+        ? "Fixed seed — isolates slider changes from random sampling."
+        : "Random seed each run (last used seed shown above — check Fixed to lock it).";
+    }
+    $("fixedSeedToggle").addEventListener("change", updateSeedControlState);
+    updateSeedControlState();
+
+    function applyPureVoiceDesignState(isPure) {
+      $("slidersPanelBody").classList.toggle("control-disabled", isPure);
+      $("preserveNormLabel").classList.toggle("control-disabled", isPure);
+      $("preserveNormToggle").disabled = isPure;
+      $("slidersDisabledNote").classList.toggle("visible", isPure);
+      $("pcaMapBody").classList.toggle("control-disabled", isPure);
+      $("pcaMapSubtitle").textContent = isPure
+        ? "Disabled in Pure VoiceDesign mode"
+        : "Click or drag to steer live";
+    }
+
     function updateRecipeBar() {
       if (!state.meta) return;
       const voice = state.voices[state.currentVoiceId];
       if (!voice) return;
+      if (voice.id === "none") {
+        $("recipeSummary").innerHTML = `<strong>Pure VoiceDesign (No Speaker Embedding)</strong> &nbsp;·&nbsp; Voice designed purely from Style Instruction`;
+        return;
+      }
       const supportsIcl = Boolean(state.meta.supports_icl);
       const useIcl = supportsIcl && voice.has_icl && $("useIclToggle").checked;
       const modeLabel = useIcl
@@ -1365,6 +1400,10 @@
       $("instructChips").classList.toggle("control-disabled", !supportsInstruct);
       $("instructInput").classList.toggle("control-disabled", !supportsInstruct);
       $("instructDisabledNote").classList.toggle("visible", !supportsInstruct);
+      $("instructInput").placeholder =
+        data.tts_model_type === "voice_design"
+          ? "e.g., A warm, calm British male voice in his 40s with a slight smile"
+          : "e.g., Speak warmly and calmly with a slight smile";
 
       // Disable/gray out ICL Reference Transcript + Use ICL toggle on CustomVoice / VoiceDesign
       $("chunkRefTextInput").disabled = !supportsIcl;
@@ -1386,6 +1425,7 @@
       voiceSelect.innerHTML = "";
 
       const groups = [
+        { label: "Pure VoiceDesign (No Embedding)", items: [] },
         { label: "Centroid", items: [] },
         { label: "CustomVoice Built-ins", items: [] },
         { label: "Uploaded / Imported", items: [] },
@@ -1400,21 +1440,23 @@
         const searchable = `${v.label} ${v.id} ${v.metadata?.accent || ""} ${v.metadata?.gender || ""}`.toLowerCase();
         if (q && !searchable.includes(q)) continue;
 
-        if (id === "pca_mean") {
+        if (id === "none") {
           groups[0].items.push(v);
-        } else if (id.startsWith("builtin_")) {
+        } else if (id === "pca_mean") {
           groups[1].items.push(v);
-        } else if (id.startsWith("custom_")) {
+        } else if (id.startsWith("builtin_")) {
           groups[2].items.push(v);
+        } else if (id.startsWith("custom_")) {
+          groups[3].items.push(v);
         } else if (id.startsWith("vctk_")) {
           if (vctkCount < 6 && !q) {
-            groups[3].items.push(v);
-          } else {
             groups[4].items.push(v);
+          } else {
+            groups[5].items.push(v);
           }
           vctkCount++;
         } else {
-          groups[4].items.push(v);
+          groups[5].items.push(v);
         }
       }
 
@@ -1466,7 +1508,10 @@
 
       renderVoiceDropdown($("voiceFilterInput").value);
 
-      if (prevVoiceId && state.voices[prevVoiceId]) {
+      // Default to Pure VoiceDesign ("none") when switching to VoiceDesign
+      if (data.tts_model_type === "voice_design" && state.voices["none"]) {
+        selectVoice("none");
+      } else if (prevVoiceId && state.voices[prevVoiceId]) {
         selectVoice(prevVoiceId);
       } else if (data.presets.length > 0) {
         selectVoice(data.presets[0].id);
@@ -1813,6 +1858,7 @@
         $("useIclToggle").checked = false;
       }
       updatePcaActiveBadge();
+      applyPureVoiceDesignState(voiceId === "none");
       updateRecipeBar();
       drawPcaMap();
     }
@@ -2423,6 +2469,10 @@
 
         const wavBlob = await res.blob();
         const genTime = res.headers.get("X-Generation-Time") || ((performance.now() - startTs) / 1000).toFixed(2);
+        const usedSeed = parseInt(res.headers.get("X-Seed-Used") || String(seed), 10);
+        if (!useFixedSeed) {
+          $("seedInput").value = usedSeed;
+        }
         const audioUrl = URL.createObjectURL(wavBlob);
 
         // Compute compact slider deltas relative to base voice (PCA + Attributes)
@@ -2485,27 +2535,33 @@
         const card = document.createElement("div");
         card.className = "history-card";
 
-        const deltaHtml = item.deltas.length
-          ? item.deltas
-              .map((d) => {
-                const cls = d.diffSigma >= 0 ? "pos" : "neg";
-                const sign = d.diffSigma >= 0 ? "+" : "";
-                return `<span class="delta-tag ${cls}">${d.label} ${sign}${d.diffSigma.toFixed(2)}σ</span>`;
-              })
-              .join("")
-          : `<span class="delta-tag">Base voice (no shift)</span>`;
+        const deltaHtml = item.voiceId === "none"
+          ? `<span class="delta-tag">Pure VoiceDesign (no embedding)</span>`
+          : item.deltas.length
+            ? item.deltas
+                .map((d) => {
+                  const cls = d.diffSigma >= 0 ? "pos" : "neg";
+                  const sign = d.diffSigma >= 0 ? "+" : "";
+                  return `<span class="delta-tag ${cls}">${d.label} ${sign}${d.diffSigma.toFixed(2)}σ</span>`;
+                })
+                .join("")
+            : `<span class="delta-tag">Base voice (no shift)</span>`;
+
+        const exportBtnHtml = item.voiceId === "none"
+          ? ""
+          : `<button class="btn btn-sm" type="button" data-export-idx="${idx}">Export Embedding (.safetensors)</button>`;
 
         card.innerHTML = `
           <div class="history-card-top">
             <span class="history-title">#${state.history.length - idx} · ${item.voiceLabel}</span>
-            <span class="history-meta">seed=${item.seed} · ${item.genTime}s · ${item.preserveNorm ? "norm-locked" : "free-norm"}</span>
+            <span class="history-meta">seed=${item.seed} · ${item.genTime}s · ${item.voiceId === "none" ? "pure-instruct" : (item.preserveNorm ? "norm-locked" : "free-norm")}</span>
           </div>
           <div class="history-text">"${item.text}"${item.instruct ? ` — [${item.instruct}]` : ""}</div>
           <div class="delta-tags">${deltaHtml}</div>
           <audio controls src="${item.audioUrl}"></audio>
           <div class="btn-row">
             <a class="btn btn-sm" href="${item.audioUrl}" download="qwen3_pca_${item.id}.wav" style="text-decoration:none;">Download WAV</a>
-            <button class="btn btn-sm" type="button" data-export-idx="${idx}">Export Embedding (.safetensors)</button>
+            ${exportBtnHtml}
             <button class="btn btn-sm" type="button" data-load-idx="${idx}">Load Sliders</button>
           </div>
         `;
