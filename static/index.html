@@ -116,14 +116,71 @@
 
     .disabled-note {
       display: none;
-      margin-top: 5px;
+      margin-top: 6px;
       font-size: 11.5px;
-      color: var(--amber);
+      color: var(--text-muted);
     }
 
     .disabled-note.visible {
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
+
+    .inline-link-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      color: var(--teal);
+      font-family: var(--font-sans);
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .inline-link-btn:hover { color: #5eead4; }
+
+    .recipe-bar {
+      margin-bottom: 12px;
+      padding: 8px 11px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .recipe-bar strong { color: var(--text); font-weight: 600; }
+
+    .voice-filter-wrap {
+      position: relative;
+      flex: 1;
+    }
+
+    .voice-filter-clear {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 15px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 5px;
+      display: none;
+    }
+
+    .voice-filter-clear.visible { display: block; }
+    .voice-filter-clear:hover { color: var(--text); }
 
     .cap-strip {
       display: flex;
@@ -911,7 +968,10 @@
         </div>
 
         <div class="voice-filter-row">
-          <input type="text" id="voiceFilterInput" placeholder="Filter voices by ID, gender, accent (e.g. Scottish, Female, Ryan)…" />
+          <div class="voice-filter-wrap">
+            <input type="text" id="voiceFilterInput" placeholder="Filter voices by ID, gender, accent (e.g. Scottish, Female, Ryan)…" style="padding-right: 28px;" />
+            <button type="button" class="voice-filter-clear" id="voiceFilterClear" title="Clear filter">×</button>
+          </div>
         </div>
 
         <div class="voice-source-grid">
@@ -934,13 +994,19 @@
 
         <div class="voice-meta-strip" id="voiceMetaStrip">
           <span id="voiceMetaText">Select a preset voice or upload/record a clip to extract its 2048-D embedding.</span>
-          <span id="encodeStatus" style="font-family: var(--font-mono); color: var(--teal);"></span>
+          <div class="btn-row" style="gap: 8px;">
+            <button class="btn btn-sm" id="resliceClipBtn" type="button" style="display:none;">Re-slice Clip</button>
+            <span id="encodeStatus" style="font-family: var(--font-mono); color: var(--teal);"></span>
+          </div>
         </div>
 
         <div class="chunk-box" id="chunkBox">
           <div class="chunk-header">
-            <strong id="chunkFilename" style="color: var(--teal);">Audio Clip</strong>
-            <span id="chunkDurationInfo" style="font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted);"></span>
+            <strong id="chunkFilename" style="color: var(--teal);">Trim Audio Clip</strong>
+            <div class="btn-row" style="gap: 8px;">
+              <span id="chunkDurationInfo" style="font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted);"></span>
+              <button class="btn btn-sm" id="closeChunkBtn" type="button" title="Close trim panel" style="padding: 2px 8px;">×</button>
+            </div>
           </div>
           <audio id="chunkPreviewAudio" controls></audio>
           <div class="btn-row">
@@ -965,7 +1031,10 @@
           <div id="chunkRefTextGroup">
             <label class="field-label" for="chunkRefTextInput">Reference Transcript (optional — enables high-fidelity ICL cloning + PCA steering)</label>
             <input type="text" id="chunkRefTextInput" placeholder="Verbatim words spoken in the selected chunk (recommended: 6–8s clip)" />
-            <div class="disabled-note" id="iclDisabledNote">ICL cloning only takes effect on the Base model — switch the model selector above to Base for faithful ICL cloning.</div>
+            <div class="disabled-note" id="iclDisabledNote">
+              <span>ICL cloning requires the Base model.</span>
+              <button type="button" class="inline-link-btn" data-quick-switch="mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16">Switch to Base</button>
+            </div>
           </div>
         </div>
       </section>
@@ -973,7 +1042,7 @@
       <section class="panel">
         <div class="panel-header">
           <div class="tab-bar" role="tablist">
-            <button class="tab-btn active" id="tabBtnPca" type="button">PCA Axes (PC1–PC10)</button>
+            <button class="tab-btn active" id="tabBtnPca" type="button">PCA Axes (PC1–PC10) <span class="tab-count" id="pcaActiveCount" style="display:none;">0</span></button>
             <button class="tab-btn" id="tabBtnAttr" type="button">Attribute Sliders <span class="tab-count" id="attrActiveCount" style="display:none;">0</span></button>
           </div>
           <label class="toggle-label" title="Rescale steered vector back to original L2 norm to reduce out-of-distribution distortion">
@@ -1064,7 +1133,10 @@
             <span class="chip" data-instruct="Speak softly in a gentle whisper.">Soft Whisper</span>
             <span class="chip" data-instruct="Speak like a serious news anchor.">News Anchor</span>
           </div>
-          <div class="disabled-note" id="instructDisabledNote">Style instructions are disabled on the Base model — switch to CustomVoice or VoiceDesign in the header to use instruct.</div>
+          <div class="disabled-note" id="instructDisabledNote">
+            <span>Style instructions are disabled on the Base model.</span>
+            <button type="button" class="inline-link-btn" data-quick-switch="mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16">Switch to CustomVoice</button>
+          </div>
         </div>
 
         <div class="synth-options-grid">
@@ -1095,6 +1167,10 @@
               <input type="number" id="seedInput" value="42" min="0" max="2147483647" />
             </div>
           </div>
+        </div>
+
+        <div class="recipe-bar" id="recipeBar">
+          <span id="recipeSummary">Ready to synthesize.</span>
         </div>
 
         <div class="generate-bar">
@@ -1156,6 +1232,73 @@
     };
 
     const $ = (id) => document.getElementById(id);
+
+    function closeChunkBox() {
+      if (state.previewStopTimer) {
+        clearTimeout(state.previewStopTimer);
+        state.previewStopTimer = null;
+      }
+      const audioEl = $("chunkPreviewAudio");
+      if (audioEl) audioEl.pause();
+      $("chunkBox").classList.remove("visible");
+    }
+
+    function updatePcaActiveBadge() {
+      if (!state.meta) return;
+      const voice = state.voices[state.currentVoiceId];
+      let active = 0;
+      state.meta.components.forEach((pc, i) => {
+        const baseVal = voice ? voice.projections[i] : 0;
+        if (Math.abs((state.targets[i] - baseVal) / Math.max(pc.std, 1e-6)) >= 0.05) active++;
+      });
+      const badge = $("pcaActiveCount");
+      badge.textContent = String(active);
+      badge.style.display = active > 0 ? "inline-block" : "none";
+    }
+
+    function updateRecipeBar() {
+      if (!state.meta) return;
+      const voice = state.voices[state.currentVoiceId];
+      if (!voice) return;
+      const supportsIcl = Boolean(state.meta.supports_icl);
+      const useIcl = supportsIcl && voice.has_icl && $("useIclToggle").checked;
+      const modeLabel = useIcl
+        ? "Base · ICL + X-Vector"
+        : state.meta.tts_model_type === "base"
+          ? "Base · X-Vector Only"
+          : state.meta.tts_model_type === "custom_voice"
+            ? "CustomVoice · X-Vector + Instruct"
+            : "VoiceDesign · X-Vector + Instruct";
+
+      const shifts = [];
+      state.meta.components.forEach((pc, i) => {
+        const d = (state.targets[i] - voice.projections[i]) / Math.max(pc.std, 1e-6);
+        if (Math.abs(d) >= 0.08) shifts.push(`PC${i + 1} ${d >= 0 ? "+" : ""}${d.toFixed(1)}σ`);
+      });
+      (state.meta.attributes || []).forEach((attr, j) => {
+        const d = (state.attrDeltas[j] || 0) / Math.max(attr.std, 1e-6);
+        if (Math.abs(d) >= 0.08) shifts.push(`${attr.name.replace(" Accent", "")} ${d >= 0 ? "+" : ""}${d.toFixed(1)}σ`);
+      });
+      const shiftStr = shifts.length ? shifts.slice(0, 4).join(", ") + (shifts.length > 4 ? ` +${shifts.length - 4}` : "") : "No shifts (base voice)";
+      $("recipeSummary").innerHTML = `<strong>${voice.label}</strong> &nbsp;·&nbsp; ${modeLabel} &nbsp;·&nbsp; ${shiftStr}`;
+    }
+
+    $("closeChunkBtn").addEventListener("click", closeChunkBox);
+    $("resliceClipBtn").addEventListener("click", () => {
+      if (state.pendingFile) $("chunkBox").classList.add("visible");
+    });
+    $("useIclToggle").addEventListener("change", updateRecipeBar);
+
+    document.querySelectorAll("[data-quick-switch]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const target = btn.dataset.quickSwitch;
+        const sel = $("modelSelect");
+        if (sel && sel.value !== target) {
+          sel.value = target;
+          sel.dispatchEvent(new Event("change"));
+        }
+      });
+    });
 
     function showError(msg) {
       const el = $("errorBanner");
@@ -1294,6 +1437,9 @@
         voiceSelect.value = current;
       } else if (voiceSelect.options.length > 0) {
         voiceSelect.selectedIndex = 0;
+        if (voiceSelect.value && voiceSelect.value !== current) {
+          selectVoice(voiceSelect.value);
+        }
       }
     }
 
@@ -1328,7 +1474,16 @@
     }
 
     $("voiceFilterInput").addEventListener("input", (e) => {
-      renderVoiceDropdown(e.target.value);
+      const val = e.target.value;
+      $("voiceFilterClear").classList.toggle("visible", val.length > 0);
+      renderVoiceDropdown(val);
+    });
+
+    $("voiceFilterClear").addEventListener("click", () => {
+      $("voiceFilterInput").value = "";
+      $("voiceFilterClear").classList.remove("visible");
+      renderVoiceDropdown("");
+      $("voiceFilterInput").focus();
     });
 
     async function init() {
@@ -1480,6 +1635,7 @@
         });
       });
       updateAttrActiveBadge();
+      updateRecipeBar();
     }
 
     function updateAttrActiveBadge() {
@@ -1509,6 +1665,7 @@
         row.classList.remove("modified");
       }
       updateAttrActiveBadge();
+      updateRecipeBar();
     }
 
     function resetAttrSliders() {
@@ -1590,11 +1747,15 @@
       } else {
         row.classList.remove("modified");
       }
+      updatePcaActiveBadge();
+      updateRecipeBar();
     }
 
     function selectVoice(voiceId) {
       const voice = state.voices[voiceId];
       if (!voice) return;
+      // Close any open audio trim/chunk staging box when switching voices
+      closeChunkBox();
       state.currentVoiceId = voiceId;
       $("voiceSelect").value = voiceId;
 
@@ -1639,6 +1800,9 @@
       if (meta.accent) details.push(`Accent: ${meta.accent}`);
       if (meta.source) details.push(`Source: ${meta.source}`);
       $("voiceMetaText").textContent = details.length > 0 ? `${voice.label} — ${details.join(" · ")}` : voice.label;
+      // Show "Re-slice Clip" only if this voice was extracted from the currently loaded file
+      const canReslice = Boolean(state.pendingFile && voice.sourceFile === state.pendingFile.name);
+      $("resliceClipBtn").style.display = canReslice ? "inline-flex" : "none";
       const supportsIcl = Boolean(state.meta && state.meta.supports_icl);
       $("useIclWrap").style.display = voice.has_icl ? "inline-flex" : "none";
       $("useIclToggle").disabled = !supportsIcl;
@@ -1648,6 +1812,8 @@
       } else if (!supportsIcl) {
         $("useIclToggle").checked = false;
       }
+      updatePcaActiveBadge();
+      updateRecipeBar();
       drawPcaMap();
     }
 
@@ -1747,6 +1913,7 @@
           projections: data.projections,
           attr_projections: data.attr_projections || [],
           has_icl: Boolean(data.has_icl),
+          sourceFile: filename,
           metadata: { source: `${filename} (${data.clip_start_sec.toFixed(1)}s–${data.clip_end_sec.toFixed(1)}s, ${data.duration_sec.toFixed(1)}s${data.has_icl ? ", ICL enabled" : ""})` },
         };
         state.voices[voiceObj.id] = voiceObj;
