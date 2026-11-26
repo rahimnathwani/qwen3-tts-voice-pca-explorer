@@ -182,6 +182,58 @@
     .voice-filter-clear.visible { display: block; }
     .voice-filter-clear:hover { color: var(--text); }
 
+    .model-switch-banner {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 9px 20px;
+      background: rgba(99, 102, 241, 0.14);
+      border-bottom: 1px solid rgba(99, 102, 241, 0.4);
+      color: #c7d2fe;
+      font-size: 13px;
+    }
+
+    .model-switch-banner.visible { display: flex; }
+
+    .try-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: rgba(45, 212, 191, 0.06);
+      border: 1px solid rgba(45, 212, 191, 0.22);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .try-bar-label {
+      font-weight: 600;
+      color: var(--teal);
+      margin-right: 2px;
+    }
+
+    .kbd-hint {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.16);
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    @keyframes cardHighlight {
+      0% { border-color: var(--teal); box-shadow: 0 0 16px rgba(45, 212, 191, 0.35); }
+      100% { border-color: var(--border); box-shadow: none; }
+    }
+
+    .history-card.newest {
+      animation: cardHighlight 1.8s ease-out;
+    }
+
     .cap-strip {
       display: flex;
       gap: 6px;
@@ -958,6 +1010,11 @@
     </div>
   </header>
 
+  <div class="model-switch-banner" id="modelSwitchBanner">
+    <span class="spinner"></span>
+    <span id="modelSwitchText">Switching model…</span>
+  </div>
+
   <main>
     <!-- Left Column: Base Voice + PCA Sliders -->
     <div class="column">
@@ -1055,6 +1112,13 @@
         </div>
 
         <div id="slidersPanelBody">
+        <div class="try-bar" id="tryBar">
+          <span class="try-bar-label">Try:</span>
+          <button class="chip" type="button" data-try="flip_gender">Flip Gender (PC1)</button>
+          <button class="chip" type="button" data-try="scottish">Shift → Scottish</button>
+          <button class="chip" type="button" data-try="indian">Shift → Indian</button>
+          <button class="chip" type="button" data-try="pca_mean">PCA Mean Voice</button>
+        </div>
         <div class="tab-pane active" id="tabPanePca">
           <div class="sliders-toolbar">
             <div class="btn-row">
@@ -1127,7 +1191,7 @@
 
         <div class="form-group">
           <label class="field-label" for="textInput">Text to Speak</label>
-          <textarea id="textInput">The quick brown fox jumps over the lazy dog near the quiet river bank, testing clarity, pitch, and natural rhythm.</textarea>
+          <textarea id="textInput">The quick brown fox jumps over the lazy dog near the quiet river.</textarea>
         </div>
 
         <div class="form-group" id="instructGroup">
@@ -1183,9 +1247,14 @@
 
         <div class="generate-bar">
           <div class="btn-row">
-            <button class="btn btn-primary" id="generateBtn" type="button">
+            <button class="btn btn-primary" id="generateBtn" type="button" title="Generate speech (⌘+Enter / Ctrl+Enter)">
               <span id="generateBtnLabel">Generate Speech</span>
+              <span class="kbd-hint">⌘↵</span>
             </button>
+            <label class="toggle-label" title="Automatically play each newly generated clip">
+              <input type="checkbox" id="autoPlayToggle" checked />
+              Auto-play
+            </label>
             <label class="toggle-label" id="useIclWrap" style="display:none;" title="Condition on both reference audio tokens (ICL) and steered 2048-D x-vector">
               <input type="checkbox" id="useIclToggle" checked />
               Use ICL Reference
@@ -1351,6 +1420,16 @@
       const sign = val >= 0 ? "+" : "";
       const sSign = sigma >= 0 ? "+" : "";
       return `${sign}${val.toFixed(3)} <span class="sigma">(${sSign}${sigma.toFixed(2)}σ)</span>`;
+    }
+
+    function getPcEndLabels(pc) {
+      if (pc.gender_r !== null && pc.gender_r !== undefined && Math.abs(pc.gender_r) >= 0.5) {
+        return pc.gender_r < 0 ? ["← Female", "Male →"] : ["← Male", "Female →"];
+      }
+      if (pc.accent_low && pc.accent_high && pc.accent_low !== pc.accent_high) {
+        return [`← ${pc.accent_low}`, `${pc.accent_high} →`];
+      }
+      return ["-2.5σ", "+2.5σ"];
     }
 
     function buildHintText(pc) {
@@ -1583,10 +1662,23 @@
       showError(null);
       const sel = $("modelSelect");
       const genBtn = $("generateBtn");
+      const targetEntry = (state.meta.available_models || []).find((m) => m.id === targetModel);
+      const targetName = targetEntry ? targetEntry.label : targetModel;
+      const dlNote = targetEntry && !targetEntry.cached ? " — first-time download ~3.8 GB" : " (~45s on MPS)";
+
       sel.disabled = true;
       genBtn.disabled = true;
       $("statusBadge").classList.add("loading");
-      $("statusText").textContent = "Switching model (~45s)…";
+      $("statusText").textContent = "Switching model…";
+      $("modelSwitchBanner").classList.add("visible");
+
+      const switchStart = performance.now();
+      const updateSwitchBanner = () => {
+        const sec = ((performance.now() - switchStart) / 1000).toFixed(0);
+        $("modelSwitchText").textContent = `Loading ${targetName} (${sec}s elapsed${dlNote})…`;
+      };
+      updateSwitchBanner();
+      const switchTimer = setInterval(updateSwitchBanner, 1000);
 
       try {
         const res = await fetch("/api/switch-model", {
@@ -1610,6 +1702,8 @@
         sel.value = state.meta.tts_model;
         showError(err.message);
       } finally {
+        clearInterval(switchTimer);
+        $("modelSwitchBanner").classList.remove("visible");
         sel.disabled = false;
         genBtn.disabled = false;
       }
@@ -1732,6 +1826,7 @@
       state.meta.components.forEach((pc, i) => {
         const bound = Math.max(pc.std * 2.5, 1e-3);
         const step = bound / 100;
+        const [lowLbl, highLbl] = getPcEndLabels(pc);
         const row = document.createElement("div");
         row.className = "pc-row";
         row.id = `pc-row-${i}`;
@@ -1759,9 +1854,9 @@
             />
           </div>
           <div class="pc-legend">
-            <span>-2.5σ (${(-bound).toFixed(2)})</span>
+            <span>${lowLbl} (${(-bound).toFixed(2)})</span>
             <span>0 (mean)</span>
-            <span>+2.5σ (+${bound.toFixed(2)})</span>
+            <span>${highLbl} (+${bound.toFixed(2)})</span>
           </div>
         `;
         container.appendChild(row);
@@ -2240,11 +2335,16 @@
       ctx.moveTo(pad, toY(0)); ctx.lineTo(w - pad, toY(0));
       ctx.stroke();
 
-      // Axis labels
-      ctx.fillStyle = "#60708a";
+      // Axis labels (with plain-English direction hints)
+      const [xLow, xHigh] = getPcEndLabels(pcX);
+      const [yLow, yHigh] = getPcEndLabels(pcY);
+      ctx.fillStyle = "#7c8ea8";
       ctx.font = "10.5px ui-monospace, Menlo, monospace";
-      ctx.fillText(`${pcX.name} (+2.5σ)`, w - pad - 72, toY(0) - 5);
-      ctx.fillText(`${pcY.name} (+2.5σ)`, toX(0) + 5, pad + 10);
+      ctx.fillText(`${xLow}`, pad + 2, toY(0) - 5);
+      const rightLabel = `${pcX.name} ${xHigh}`;
+      ctx.fillText(rightLabel, Math.max(pad + 60, w - pad - rightLabel.length * 6.4), toY(0) - 5);
+      ctx.fillText(`${pcY.name} ${yHigh}`, toX(0) + 5, pad + 10);
+      ctx.fillText(`${yLow}`, toX(0) + 5, h - pad - 4);
 
       // Draw VCTK & Built-in speaker dots
       const seenAccents = new Map();
@@ -2358,6 +2458,54 @@
         updateSliderDisplay(i);
       });
       resetAttrSliders();
+    });
+
+    // Quick "Try This" starter experiments
+    document.querySelectorAll("[data-try]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (!state.meta || state.currentVoiceId === "none") return;
+        const action = btn.dataset.try;
+        if (action === "pca_mean") {
+          if (state.voices["pca_mean"]) selectVoice("pca_mean");
+          switchSliderTab("pca");
+          return;
+        }
+        if (action === "flip_gender") {
+          switchSliderTab("pca");
+          const pc0 = state.meta.components[0];
+          const cur = state.targets[0] || 0;
+          const next = Math.abs(cur) < pc0.std * 0.4 ? pc0.std * 1.5 : -cur;
+          const bound = pc0.std * 2.5;
+          const clamped = Math.max(-bound, Math.min(bound, next));
+          state.targets[0] = clamped;
+          $("pc-slider-0").value = clamped;
+          updateSliderDisplay(0);
+          drawPcaMap();
+          return;
+        }
+        if (action === "scottish" || action === "indian") {
+          switchSliderTab("attr");
+          const attrs = state.meta.attributes || [];
+          const idx = attrs.findIndex((a) => a.id === `accent_${action}`);
+          if (idx >= 0) {
+            resetAttrSliders();
+            const val = attrs[idx].std * 2.0;
+            state.attrDeltas[idx] = val;
+            const sl = $(`attr-slider-${idx}`);
+            if (sl) sl.value = val;
+            updateAttrDisplay(idx);
+            drawPcaMap();
+          }
+        }
+      });
+    });
+
+    // Global keyboard shortcut: Cmd+Enter / Ctrl+Enter to Generate Speech
+    document.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        $("generateBtn").click();
+      }
     });
 
     // Quick instruct chips
@@ -2507,7 +2655,7 @@
           audioUrl,
         });
 
-        renderHistory();
+        renderHistory(true);
         $("genTimer").textContent = `Done in ${genTime}s`;
       } catch (err) {
         showError(err.message);
@@ -2516,11 +2664,11 @@
         clearInterval(timerInterval);
         state.isGenerating = false;
         btn.disabled = false;
-        btn.innerHTML = `<span id="generateBtnLabel">Generate Speech</span>`;
+        btn.innerHTML = `<span id="generateBtnLabel">Generate Speech</span><span class="kbd-hint">⌘↵</span>`;
       }
     });
 
-    function renderHistory() {
+    function renderHistory(isNewClip = false) {
       $("historyCount").textContent = state.history.length;
       const container = $("historyContainer");
       if (state.history.length === 0) {
@@ -2533,7 +2681,7 @@
 
       state.history.forEach((item, idx) => {
         const card = document.createElement("div");
-        card.className = "history-card";
+        card.className = idx === 0 && isNewClip ? "history-card newest" : "history-card";
 
         const deltaHtml = item.voiceId === "none"
           ? `<span class="delta-tag">Pure VoiceDesign (no embedding)</span>`
@@ -2570,6 +2718,13 @@
 
       container.innerHTML = "";
       container.appendChild(list);
+
+      if (isNewClip && $("autoPlayToggle")?.checked) {
+        const firstAudio = container.querySelector("audio");
+        if (firstAudio) {
+          firstAudio.play().catch(() => {});
+        }
+      }
 
       container.querySelectorAll("[data-export-idx]").forEach((btn) => {
         btn.addEventListener("click", () => {
